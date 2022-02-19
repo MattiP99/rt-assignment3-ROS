@@ -1,0 +1,17 @@
+<launch>
+  
+  <!-- For terminal (human) reading -->
+  <env name="ROSCONSOLE_FORMAT" value="${message}"/>
+  
+  <!-- Essential parameters -->
+  <param name="rt1a3_action_timeout" type="double" value="60.0"/>
+  <param name="rt1a3_brake_threshold" type="double" value="1.0"/>
+
+  <!-- Essential Nodes -->
+  <node name="final_ui" pkg="final_assignment"
+    type="final_ui" required="false" output="screen"/>
+  
+
+  <node name="final_controller" pkg="final_assignment" output="screen"
+    type="final_controller" launch-prefix="gnome-terminal -- sh -c"/>
+</launch>

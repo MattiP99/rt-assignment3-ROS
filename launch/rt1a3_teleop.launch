@@ -1,0 +1,8 @@
+<launch>
+  <!-- For terminal (human) reading -->
+  <env name="ROSCONSOLE_FORMAT" value="${message}"/>
+  
+  <remap from="cmd_vel" to="controller_cmd_vel"/>
+  <node name="teleop_twist_keyboard" pkg="teleop_twist_keyboard"
+    type="teleop_twist_keyboard.py"/>
+</launch>
