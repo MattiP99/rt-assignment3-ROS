@@ -131,7 +131,13 @@ int UserClass::mode_choice(){
 	goal_srv.request.x = inputX;
 	goal_srv.request.y = inputY;
 	client_goal.waitForExistence();
-	client_goal.call(goal_srv); //MAYBE CHECK SOMETHING
+	if(client_goal.call(goal_srv)){
+		if(goal_srv.response.success == true){
+			displayText("INPUT RECEIVED CORRECTLY, starting the timer",TEXT_DELAY);
+		}else{
+			displayText("input not yet received",TEXT_DELAY);
+		}
+	}; //MAYBE CHECK SOMETHING
 	
   
 
@@ -143,11 +149,10 @@ int UserClass::mode_choice(){
         displayText("\nPress q to cancel the goal, or any other key to continue.\n", TEXT_DELAY);
 	
 	
-        // Start counter to timeout
-        ros::Timer timeoutTimer = node_handle.createTimer(ros::Duration(actionTimeout), &UserClass::timeoutTimerCallback,this); //NON SONO SICURI DI COME SI SCRIVA LA FUNZIONE NEL TIMER!!!!!!
+        
         // User is allowed to cancel the robot's goal point: listen for input!
         // The input must be asynchronous!
-	std::cin >> s;
+	//std::cin >> s;
         
 
         while (true) {
@@ -158,7 +163,7 @@ int UserClass::mode_choice(){
           }
           else{
           	//if(s.c_str()=="q"){
-			this.cancelGoal();          		
+			cancelGoal();          		
           	}
           }
 	      
@@ -233,7 +238,7 @@ int UserClass::cancelGoal () {
   ROS_INFO("\n Press q in order to cancel the goal or anyother key to continue");
   std::cin >> inputStr;
 
-  if (!this.isComplete) {
+  if (!isComplete) {
     if (inputStr.c_str() == "q") {
       // "q" pressed - cancel goal!
       clearTerminal();
@@ -250,7 +255,7 @@ int UserClass::cancelGoal () {
       terminalColor(32, false);
       displayText("\nGoal has been cancelled.\n", TEXT_DELAY);
 
-      this.isComplete = true;
+      isComplete = true;
     } else {
       clearTerminal();
       terminalColor(37, false);
@@ -280,18 +285,7 @@ int UserClass::getUserChoice () {
   return inputChoice;
 }
   	
-    
-
-
    
-   void UserClass::timeoutTimerCallback(const ros::TimerEvent& event) {
-  	isComplete = true;
-
-  	clearTerminal();
-  	terminalColor(31, true);
-  	std::cout << "Action timed out! (Are you sure the goal was reachable?)\n";
-  	fflush(stdout);
-	}
 
 
 int main (int argc, char **argv)

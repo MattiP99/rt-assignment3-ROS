@@ -24,7 +24,7 @@ public:
   
   ControllerClass();
   ~ControllerClass();
-  
+  void timeoutTimerCallback(const ros::TimerEvent& event);
   void sendInfo(std::string msg);
   void LaserScanParserCallBack(const sensor_msgs::LaserScan::ConstPtr& scaninfo);
   void UserDriveCallBack(const geometry_msgs::Twist& msg);

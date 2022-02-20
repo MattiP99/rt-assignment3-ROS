@@ -25,6 +25,10 @@
 #define GOAL_TH 0.5
 const int TEXT_DELAY = 25000; // microseconds
 double actionTimeout;
+double brakethreshold;
+ros::Timer timeoutTimer;
+
+
 
 // Represents MINIMUM distances of obstacles around the robot
 struct minDistances {
@@ -37,6 +41,7 @@ static struct minDistances minDistances;
 //These values set the ros parameters but actually the ros param server values are used
 const double ACTION_TIMEOUT_DEFAULT = 30.0; //seconds
 const double BRAKE_THRESHOLD_DEFAULT = 1.0;
+
 move_base_msgs::MoveBaseGoal goal;
 
 
@@ -143,17 +148,35 @@ bool ControllerClass::switch_mode(final_assignment::Behavior_mode_service::Reque
 void ControllerClass::sendInfo(std::string msg){
   	std_msgs::String stateInfoMsg;
   	stateInfoMsg.data = msg;
-  	this.pubStateInfo.publish(stateInfoMsg);
+  	pubStateInfo.publish(stateInfoMsg);
   }
 
 
+
+void ControllerClass::timeoutTimerCallback(const ros::TimerEvent& event) {
+  	isComplete = true;
+
+  	clearTerminal();
+  	terminalColor(31, true);
+  	std::cout << "Action timed out! (Are you sure the goal was reachable?)\n";
+  	fflush(stdout);
+	}
+	
+	
+	
 //service to set goal
 bool ControllerClass::set_goal(final_assignment::Goal_service::Request  &req, final_assignment::Goal_service::Response &res){
      goal_is_defined = false;
+     
+    if (node_handle.getParam("/rt1a3_action_timeout", actionTimeout)) {
+    // ROS_INFO("Action timeout successfully retrieved from parameter server");
+     } else {
+    	ROS_ERROR("Failed to retrieve action timeout from parameter server");
+  	}
     
     //The goal is only to be considered if the mode 1 is active
     if (current_mode ==1){
-
+        timeoutTimer = node_handle.createTimer(ros::Duration(actionTimeout), &ControllerClass::timeoutTimerCallback,this); //NON SONO SICURI DI COME SI SCRIVA LA FUNZIONE NEL TIMER!!!!!!
         //update the new goal, regarless where this goal is in the map
         ROS_INFO("request is x=%f and y=%f", req.x, req.y);
         goal.target_pose.header.frame_id = "map";
@@ -194,8 +217,11 @@ bool ControllerClass::set_goal(final_assignment::Goal_service::Request  &req, fi
     
 }
 
-void ControllerClass::currentStatus(const move_base_msgs::MoveBaseActionFeedback::ConstPtr& msg) {
 
+	
+	
+void ControllerClass::currentStatus(const move_base_msgs::MoveBaseActionFeedback::ConstPtr& msg) {
+     
     // Update the goal ID if there is a new goal
     if (this.GoalID != msg->status.goal_id.id) {
         this.GoalID = msg->status.goal_id.id;
@@ -221,19 +247,20 @@ void ControllerClass::currentStatus(const move_base_msgs::MoveBaseActionFeedback
 	     ac.cancelGoal();       //NON SO SE è GIUSTO COSI RiGUARDA
 	}
 
-    	time_end = std::chrono::high_resolution_clock::now();
-        auto time = std::chrono::duration_cast<std::chrono::microseconds>(time_end - time_start).count();
-        if(time > actionTimeout) //TIMEOUT)
+    	//time_end = std::chrono::high_resolution_clock::now();
+        //auto time = std::chrono::duration_cast<std::chrono::microseconds>(time_end - time_start).count();
+        if(timeoutTimer.toSec() > actionTimeout) //TIMEOUT)
         {
         	printf("The actual goal can't be reached!\n");
         	ac.cancelGoal(); // Cancel the goal if it can't be reached
+        	//EXIT? ROS_SHUTDOWN?
         }
     }
 }
 
 void ControllerClass::CancelCallBack(const std_msgs::String &msg){
     if( msg.data == "cancel"){
-    	ac.cancelGoal();
+    	ac->cancelGoal();
     	clearTerminal();
     	terminalColor(37,false);
     	displayText("The goal has been canceled", TEXT_DELAY);
@@ -242,7 +269,7 @@ void ControllerClass::CancelCallBack(const std_msgs::String &msg){
 }
 
 
-
+//PROBABILMENTE FUNZIONE INUTILE; QUESTO CODICE POTREI METTERLO IN UN'ALTRA FUNZIONE O NEL MAIN...
 void ControllerClass::init_param(){
 	// Set the timeout threshold on the parameter server so it can be tweaked in runtime
   	if(!node_handle.hasParam("rt1a3_action_timeout")){
@@ -319,7 +346,7 @@ void ControllerClass::collisionAvoidance() {
 
 
 void ControllerClass::UserDriveCallBack(const geometry_msgs::Twist::ConstPtr& msg) {
-  	this.velFromTeleop = *msg; // Save new velocity as class variable
+  	velFromTeleop = *msg; // Save new velocity as class variable
 }
 
 
