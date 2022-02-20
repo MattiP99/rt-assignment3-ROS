@@ -1,25 +1,25 @@
-#ifndef CONTROLLER_H
-#define CONTROLLER_H
+#ifndef USER_H
+#define USER_H
 
 #include <ros/ros.h>
-#include <geometry_msgs/Twist.h>
-#include <"std_msgs/String.h">
-#include <"final_assignment/Behavior_mode_service.h>
-#include <"fianl_assignment/Goal_service.h">
+#include "geometry_msgs/Twist.h"
+#include "std_msgs/string.h"
+#include "final_assignment/Behavior_mode_service.h"
+#include "final_assignment/Goal_service.h"
 
-class UserClass {
+class UserClass{
 	public:
- 		bool isComplete;
- 		bool isAutonomous;
- 		double inputX;
- 		double inputY;
- 		int inputChoice;
- 		int userInput;
- 		bool isUserDeciding;
- 		
- 		
+ 	
  		UserClass();
-  		virtual ~UserClass();
+  		~UserClass();
+  		
+  		//FUNCTIONS
+  		void sendInfo(std_msgs::string msg);
+  		void timeoutTimerCallback(const ros::TimerEvent& event)
+  		void mode_choice();
+  		int getUserChoice();
+  		int cancelGoal();
+  		
 
 	private:
   		// ROS NodeHandle
@@ -29,9 +29,7 @@ class UserClass {
   		ros::AsyncSpinner spinner;
   
   		
-
-  
-  		//PUBLISHERS
+		//PUBLISHERS
   		ros::Publisher pubStateInfo;
   		ros::Publisher pub_mode;
   		ros::Publisher pub_cancel;
@@ -41,14 +39,15 @@ class UserClass {
    		ros::ServiceClient client_srv;
    		ros::ServiceClient client_res;
   
-  		//FUNCTIONS
-  		void sendInfo(std_msgs::string msg);
-  		void timeoutTimerCallback(const ros::TimerEvent& event)
-  		void mode_choice();
-  		int getUserChoice();
-  		int cancelGoal();
-  		bool switch_mode(final_assignment::Behavior_mode_service::Request  &req, final_assignment::Behavior_mode_service::Response &res);
-  		bool set_goal(final_assignment::Goal_service::Request  &req, final_assignment::Goal_service::Goal::Response &res);
+  		bool isComplete;
+ 		bool isAutonomous;
+ 		bool isUserDeciding;
+ 		double inputX;
+ 		double inputY;
+ 		int inputChoice;
+ 		int userInput;
+ 		
+  		
 };
 
 #endif 

@@ -2,9 +2,10 @@
 #define CONTROLLER_H
 
 #include <ros/ros.h>
-#include <geometry_msgs/Twist.h>
-#include <sensor_msgs/LaserScan.h>
-#include <std_msgs/Int32.h>
+#include "geometry_msgs/Twist.h"
+#include "sensor_msgs/LaserScan.h"
+#include "std_msgs/Int32.h"
+#include "std_msgs/String"
 #include <string>
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/client/terminal_state.h>
@@ -12,19 +13,27 @@
 #include <move_base_msgs/MoveBaseAction.h>
 #include <move_base_msgs/MoveBaseGoal.h>
 
+#include "final_assignment/Behavior_mode_service.h"
+#include "final_assignment/Goal_service.h"
+
 
 class ControllerClass {
 public:
   
-  int current_mode = 0;
-  bool goal_is_defined = false;
-  static geometry_msgs::Twist velFromTeleop; // Velocity sent over from teleop_twist_keyboard
-  double x_goal;
-  double y_goal;
-  std::string GoalID;
+  
   
   ControllerClass();
-  virtual ~ControllerClass();
+  ~ControllerClass();
+  
+  
+  void LaserScanParserCallBack(const sensor_msgs::LaserScan::ConstPtr& scaninfo);
+  void UserDriveCallBack(const geometry_msgs::Twist& msg);
+  void CancelCallBack(const std_msgs::String& msg);
+  void init_param();
+  void collisionAvoidance();
+  void currentStatus(const move_base_msgs::MoveBaseActionFeedback::ConstPtr& msg);
+  bool switch_mode(final_assignment::Behavior_mode_service::Request  &req, final_assignment::Behavior_mode_service::Response &res);
+  bool set_goal(final_assignment::Goal_service::Request  &req, final_assignment::Goal_service::Response &res);
 
 private:
   // ROS NodeHandle
@@ -43,17 +52,20 @@ private:
   ros::Subscriber subMode;
   ros::Subscriber subCmdVelRemapped;
   ros::Subscriber subScanner;
+ 
   
   //SERVICES
   ros::ServiceServer service_mode;
   ros::ServiceServer service_goal;  
+  
+  int current_mode;
+  bool goal_is_defined;
+  static geometry_msgs::Twist velFromTeleop; // Velocity sent over from teleop_twist_keyboard
+  double x_goal;
+  double y_goal;
+  std::string GoalID;
 
-  void Mode_Callback(const std_msgs::Int32& msg);
-  void LaserScanParserCallBack(const sensor_msgs::LaserScan::ConstPtr& scaninfo);
-  void UserDriveCallBack(const geometry_msgs::Twist& msg);
-  void init_param();
-  void collisionAvoidance();
-  void currentStatus(const move_base_msgs::MoveBaseActionFeedback::ConstPtr& msg);
+  
   
 };
 
