@@ -15,6 +15,7 @@
 #include <std_msgs/Empty.h>
 #include <std_msgs/Bool.h>
 #include <std_msgs/String.h>
+#include <string>
 #include <geometry_msgs/Point.h>
 #include "geometry_msgs/Twist.h"
 
@@ -41,17 +42,20 @@ UserClass::UserClass() : node_handle(""), spinner(0) {
   isComplete = false;
   isAutonomous = false;
   
-  input_x = 0;
-  input_y = 0;
+  inputX = 0;
+  inputY = 0;
+  
+  //SUBSCRIBER
+  subStateInfo =node_handle.subscribe("controller_stateinfo", 100, &UserClass::receiveStateInfo, this);
   //PUBLISHERS
-  pubStateInfo = node_handle.advertise<std_msgs::String>("controller_stateinfo", 10);
+  
   pub_cancel = node_handle.advertise<std_msgs::String>("/cancel", 1);
   pub_mode = node_handle.advertise<std_msgs::Int32>("/current_mode",1);
   
   //SERVICES
   
-  client_mode = nh.serviceClient<second_assignment::Behavior_mode_service>("/switch_mode");
-  client_goal = nh.serviceClient<final_assignment::Goal_service>("/set_goal");
+  client_mode = node_handle.serviceClient<final_assignment::Behavior_mode_service>("/switch_mode");
+  client_goal = node_handle.serviceClient<final_assignment::Goal_service>("/set_goal");
   
    
   
@@ -62,13 +66,11 @@ UserClass::UserClass() : node_handle(""), spinner(0) {
 UserClass::~UserClass() { ros::shutdown(); }
 
 
-void UserClass::sendInfo(std::string msg){
-  	std_msgs::String stateInfoMsg;
-  	stateInfoMsg.data = msg;
-  	this.pubStateInfo.publish(stateInfoMsg);
-  }
 
+void UserClass::receiveStateInfo(const std_msgs::String::ConstPtr& info){
 
+ displayText(info.toString().c_str(), TEXT_DELAY);
+} 
 
 int UserClass::mode_choice(){
   
@@ -82,7 +84,7 @@ int UserClass::mode_choice(){
 
     switch(inputChoice) {
       case 1: // Choice 1: Autonomous Goal Point
-      
+      {
         double actionTimeout;
 	//USING SERVICE
 	mode_srv.request.mode = 1;
@@ -142,7 +144,7 @@ int UserClass::mode_choice(){
 	
 	
         // Start counter to timeout
-        ros::Timer timeoutTimer = node_handle.createTimer(ros::Duration(actionTimeout), timeoutTimerCallback);
+        ros::Timer timeoutTimer = node_handle.createTimer(ros::Duration(actionTimeout), &UserClass::timeoutTimerCallback,this); //NON SONO SICURI DI COME SI SCRIVA LA FUNZIONE NEL TIMER!!!!!!
         // User is allowed to cancel the robot's goal point: listen for input!
         // The input must be asynchronous!
 	std::cin >> s;
@@ -162,10 +164,11 @@ int UserClass::mode_choice(){
 	      
         //ros::spinOnce();
         ros::Duration(1).sleep();
-        break;
+      }  break;
       
 
       case 2: // Choice 2: Manual Driving
+      {
       //USING SERVICE
 	
 	mode_srv.request.mode = 2;
@@ -179,10 +182,11 @@ int UserClass::mode_choice(){
 
         //pubManualDrive.publish(msgBool);
 
-        break;
-
+       } break;
+	
       case 3: // Choice 3: Assisted Driving
       //USING SERVICE
+      {
 	mode_srv.request.mode = 3;
 	
 	//CLASS VARIABLES
@@ -196,15 +200,17 @@ int UserClass::mode_choice(){
 
         //pubAssistedDrive.publish(msgBool);
 
-        break;
-
+        }break;
+	
       default:
+      {
         terminalColor(41, true);
         displayText("\nInvalid. Please select a valid option.\n", TEXT_DELAY);
         terminalColor(37, false);
         ros::Duration(1).sleep();
         inputChoice = getUserChoice();
-        break;
+        }break;
+        
     }
     
     client_mode.waitForExistence(); //MAYBE IN THE WRONG POSITION
@@ -219,15 +225,15 @@ int UserClass::mode_choice(){
 }
 
 
-int cancelGoal () {
+int UserClass::cancelGoal () {
   std::string inputStr;
   
   actionlib_msgs::GoalID goalCancelID;
   terminalColor(37, false);
-  ROS_INFO("\n Press q in order to cancel the goal or anyother key to continue")
+  ROS_INFO("\n Press q in order to cancel the goal or anyother key to continue");
   std::cin >> inputStr;
 
-  if (!isComplete) {
+  if (!this.isComplete) {
     if (inputStr.c_str() == "q") {
       // "q" pressed - cancel goal!
       clearTerminal();
@@ -244,7 +250,7 @@ int cancelGoal () {
       terminalColor(32, false);
       displayText("\nGoal has been cancelled.\n", TEXT_DELAY);
 
-      isComplete = true;
+      this.isComplete = true;
     } else {
       clearTerminal();
       terminalColor(37, false);
@@ -293,7 +299,7 @@ int main (int argc, char **argv)
  	ros::init(argc, argv, "user_node");
  	ros::NodeHandle nh;
    	
-  	UserClass us = UserClass(&nh);
+  	UserClass us;
   	
     	ros::waitForShutdown();
 }

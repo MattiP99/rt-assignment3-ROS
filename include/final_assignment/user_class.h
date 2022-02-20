@@ -3,7 +3,7 @@
 
 #include <ros/ros.h>
 #include "geometry_msgs/Twist.h"
-#include "std_msgs/string.h"
+#include "std_msgs/String.h"
 #include "final_assignment/Behavior_mode_service.h"
 #include "final_assignment/Goal_service.h"
 
@@ -14,11 +14,12 @@ class UserClass{
   		~UserClass();
   		
   		//FUNCTIONS
-  		void sendInfo(std_msgs::string msg);
-  		void timeoutTimerCallback(const ros::TimerEvent& event)
-  		void mode_choice();
+  		
+  		void timeoutTimerCallback(const ros::TimerEvent& event);
+  		int mode_choice();
   		int getUserChoice();
   		int cancelGoal();
+  		void receiveStateInfo(const std_msgs::String::ConstPtr& info); 
   		
 
 	private:
@@ -27,17 +28,19 @@ class UserClass{
 
   		// reate Assync spiner
   		ros::AsyncSpinner spinner;
-  
+  		
+  		//SUBSCRIBER
+  		ros::Subscriber subStateInfo;
   		
 		//PUBLISHERS
-  		ros::Publisher pubStateInfo;
+  		
   		ros::Publisher pub_mode;
   		ros::Publisher pub_cancel;
   		
   		//CLIENTS
   		
-   		ros::ServiceClient client_srv;
-   		ros::ServiceClient client_res;
+   		ros::ServiceClient client_mode;
+   		ros::ServiceClient client_goal;
   
   		bool isComplete;
  		bool isAutonomous;

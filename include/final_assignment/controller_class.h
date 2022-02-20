@@ -5,7 +5,7 @@
 #include "geometry_msgs/Twist.h"
 #include "sensor_msgs/LaserScan.h"
 #include "std_msgs/Int32.h"
-#include "std_msgs/String"
+#include "std_msgs/String.h"
 #include <string>
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/client/terminal_state.h>
@@ -25,7 +25,7 @@ public:
   ControllerClass();
   ~ControllerClass();
   
-  
+  void sendInfo(std::string msg);
   void LaserScanParserCallBack(const sensor_msgs::LaserScan::ConstPtr& scaninfo);
   void UserDriveCallBack(const geometry_msgs::Twist& msg);
   void CancelCallBack(const std_msgs::String& msg);
@@ -45,8 +45,11 @@ private:
   ros::AsyncSpinner spinner;
   //ACTION CLIENT
  //Prepare the goal to be sent
- typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> MoveBaseClient;
+ typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> ac;
 
+  //PUBLISHER
+  ros::Publisher pubStateInfo;
+  ros::Publisher pubCmdVel;
    		
   // SUBSCRIBERS
   ros::Subscriber subMode;

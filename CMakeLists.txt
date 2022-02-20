@@ -2,7 +2,8 @@ cmake_minimum_required(VERSION 3.0.2)
 project(final_assignment)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
+#add_compile_options(-std=c++11)
+
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -77,7 +78,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate added messages and services with any dependencies listed here
  generate_messages(
    DEPENDENCIES
-   geometry_msgs   nav_msgs   sensor_msgs   std_msgs
+   geometry_msgs   nav_msgs   sensor_msgs   std_msgs tf  actionlib actionlib_msgs
  )
 
 ################################################
@@ -111,9 +112,9 @@ find_package(catkin REQUIRED COMPONENTS
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
   INCLUDE_DIRS include
-#  LIBRARIES final_assignment
-  CATKIN_DEPENDS geometry_msgs nav_msgs roscpp rospy sensor_msgs std_msgs tf
-#  DEPENDS system_lib
+  #LIBRARIES final_assignment
+  CATKIN_DEPENDS  actionlib actionlib_msgs message_generation geometry_msgs nav_msgs roscpp rospy sensor_msgs std_msgs tf
+  #DEPENDS system_lib
 )
 
 ###########
@@ -128,9 +129,9 @@ include_directories(
 )
 
 ## Declare a C++ library
-# add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/final_assignment.cpp
-# )
+ #add_library(${PROJECT_NAME}
+ #  src/${PROJECT_NAME}/final_assignment.cpp
+ #)
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -182,7 +183,7 @@ target_link_libraries(rt1a3_controller
 
 ## Mark executables for installation
 ## See http://docs.ros.org/melodic/api/catkin/html/howto/format1/building_executables.html
-# install(TARGETS ${PROJECT_NAME}_node
+#install(TARGETS ${PROJECT_NAME}_node
 #   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 # )
 

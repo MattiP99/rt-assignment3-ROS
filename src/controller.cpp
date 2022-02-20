@@ -1,6 +1,7 @@
 #include "ros/ros.h"
 #include <unistd.h>
 #include <sstream>
+#include <string>
 #include "final_assignment/utils.h"
 #include "final_assignment/controller_class.h"
 
@@ -23,6 +24,13 @@
 
 #define GOAL_TH 0.5
 const int TEXT_DELAY = 25000; // microseconds
+double actionTimeout;
+
+// Represents MINIMUM distances of obstacles around the robot
+struct minDistances {
+  float left;
+  float right;
+};
 
 static struct minDistances minDistances;
 
@@ -30,11 +38,7 @@ static struct minDistances minDistances;
 const double ACTION_TIMEOUT_DEFAULT = 30.0; //seconds
 const double BRAKE_THRESHOLD_DEFAULT = 1.0;
 move_base_msgs::MoveBaseGoal goal;
-// Represents MINIMUM distances of obstacles around the robot
-struct minDistances {
-  float left;
-  float right;
-};
+
 
 //CONSTRUCTOR
 ControllerClass::ControllerClass() : node_handle(""),node_handle2(""),node_handle3(""), spinner(0) {
@@ -46,7 +50,10 @@ ControllerClass::ControllerClass() : node_handle(""),node_handle2(""),node_handl
   spinner.start();
   
   //ACTIONCLIENT
-  MoveBaseClient ac("move_base", true);
+  //MoveBaseClient 
+  ac("move_base", true);
+  pubStateInfo = node_handle.advertise<std_msgs::String>("controller_stateinfo", 10);
+  pubCmdVel = node_handle.advertise<geometry_msgs::Twist>("cmd_vel",10);
   
   service_mode = node_handle.advertiseService("/switch_mode", &ControllerClass::switch_mode, this);
   service_goal = node_handle.advertiseService("/set_goal", &ControllerClass::set_goal, this);
@@ -60,7 +67,7 @@ ControllerClass::ControllerClass() : node_handle(""),node_handle2(""),node_handl
   // Create a second NodeHandle
   ros::CallbackQueue secondQueue;
   node_handle2.setCallbackQueue(&secondQueue);
-  node_handle2.subscribe("controller_cmd_vel", 10, &ControllerClass::UserDriveCallback,this);
+  node_handle2.subscribe("controller_cmd_vel", 10, &ControllerClass::UserDriveCallBack,this);
 
   // Spawn a new thread for high-priority callbacks.
   std::thread prioritySpinThread([&secondQueue]() {
@@ -133,6 +140,11 @@ bool ControllerClass::switch_mode(final_assignment::Behavior_mode_service::Reque
     
     return true;        
 }
+void ControllerClass::sendInfo(std::string msg){
+  	std_msgs::String stateInfoMsg;
+  	stateInfoMsg.data = msg;
+  	this.pubStateInfo.publish(stateInfoMsg);
+  }
 
 
 //service to set goal
@@ -158,21 +170,22 @@ bool ControllerClass::set_goal(final_assignment::Goal_service::Request  &req, fi
         ac.sendGoal(goal,
         	    boost::bind(&ControllerClass::doneCb, this, _1, _2),
                     boost::bind(&ControllerClass::activeCb, this),
-                    boost::bind(&ControllerClass::feedbackCb, this, _1));)
+                    boost::bind(&ControllerClass::feedbackCb, this, _1));
         
         goal_is_defined = true;
         
         // If action does not finish before timeout, then cancel it and notify user
-  	if (moveBaseAC.waitForResult(ros::Duration(actionTimeout))) {
+  	if (ac.waitForResult(ros::Duration(actionTimeout))) {
     		actionlib::SimpleClientGoalState state = ac.getState();
    		 ROS_INFO("Action finished: %s", state.toString().c_str());
     		sendInfo("Goal has been successfully reached.");
- 	 } else {
+ 	 }else {
     		ROS_INFO("Action timed out.");
     		sendInfo("Timeout: goal has been automatically cancelled. (Are you sure the requested coordinates were reachable?)");
     		ac.cancelGoal();
-    }
-    else{
+    	}
+    
+    } else{
         res.success = false;
         ROS_INFO("Goal definition is only for mode 1");
     }
@@ -181,11 +194,11 @@ bool ControllerClass::set_goal(final_assignment::Goal_service::Request  &req, fi
     
 }
 
-void Controller_class::currentStatus(const move_base_msgs::MoveBaseActionFeedback::ConstPtr& msg) {
+void ControllerClass::currentStatus(const move_base_msgs::MoveBaseActionFeedback::ConstPtr& msg) {
 
     // Update the goal ID if there is a new goal
-    if (GoalID != msg->status.goal_id.id) {
-        GoalID = msg->status.goal_id.id;
+    if (this.GoalID != msg->status.goal_id.id) {
+        this.GoalID = msg->status.goal_id.id;
     }
     
     // If there is a goal check if the robot has reached the goal or is trying to reach the goal for a too long time
@@ -198,8 +211,8 @@ void Controller_class::currentStatus(const move_base_msgs::MoveBaseActionFeedbac
 	float robot_y = msg->feedback.base_position.pose.position.y;
     
 	// Compute the error from the actual position and the goal position
-	dist_x = robot_x - x_goal;
-	dist_y = robot_y - y_goal;
+	dist_x = robot_x - this.x_goal;
+	dist_y = robot_y - this.y_goal;
 
 	// The robot is on the goal position
 	if (abs(dist_x) <= GOAL_TH && abs(dist_y) <= GOAL_TH)
@@ -210,7 +223,7 @@ void Controller_class::currentStatus(const move_base_msgs::MoveBaseActionFeedbac
 
     	time_end = std::chrono::high_resolution_clock::now();
         auto time = std::chrono::duration_cast<std::chrono::microseconds>(time_end - time_start).count();
-        if(time > TIMEOUT)
+        if(time > actionTimeout) //TIMEOUT)
         {
         	printf("The actual goal can't be reached!\n");
         	ac.cancelGoal(); // Cancel the goal if it can't be reached
@@ -233,12 +246,12 @@ void ControllerClass::CancelCallBack(const std_msgs::String &msg){
 void ControllerClass::init_param(){
 	// Set the timeout threshold on the parameter server so it can be tweaked in runtime
   	if(!node_handle.hasParam("rt1a3_action_timeout")){
-  		nh.setParam("/rt1a3_action_timeout", ACTION_TIMEOUT_DEFAULT);
+  		node_handle.setParam("/rt1a3_action_timeout", ACTION_TIMEOUT_DEFAULT);
   	}
   	
   	//Set the brake threashold on the parameter server so it can be tweaked in runtime
   	if(!node_handle.hasParam("rt1a3_brake_threshold")){
-  		nh.setParam("/rt1a3_brake_threshold", BRAKE_THRESHOLD_DEFAULT);
+  		node_handle.setParam("/rt1a3_brake_threshold", BRAKE_THRESHOLD_DEFAULT);
   	}
 }
 
@@ -282,7 +295,7 @@ void ControllerClass::collisionAvoidance() {
 
   	newVel = velFromTeleop;
 
-  	if (nh.getParam("/rt1a3_brake_threshold", brakeThreshold)) {
+  	if (node_handle.getParam("/rt1a3_brake_threshold", brakeThreshold)) {
     		// ROS_INFO("Brake threshold successfully retrieved from parameter server");
   	} else {
     		ROS_ERROR("Failed to retrieve brake threshold from parameter server");
@@ -305,7 +318,7 @@ void ControllerClass::collisionAvoidance() {
 }
 
 
-void ControllerClass::UserDriveCallback(const geometry_msgs::Twist::ConstPtr& msg) {
+void ControllerClass::UserDriveCallBack(const geometry_msgs::Twist::ConstPtr& msg) {
   	this.velFromTeleop = *msg; // Save new velocity as class variable
 }
 
