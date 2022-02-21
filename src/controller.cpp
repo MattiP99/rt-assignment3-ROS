@@ -1,5 +1,6 @@
 #include "ros/ros.h"
 #include <unistd.h>
+#include <termios.h>
 #include <sstream>
 #include <string>
 #include "final_assignment/utils.h"
@@ -21,6 +22,7 @@
 #include "std_msgs/Int32.h"
 #include "std_msgs/String.h"
 #include "std_msgs/Bool.h"
+#include <ros/callback_queue.h>
 
 #define GOAL_TH 0.5
 const int TEXT_DELAY = 25000; // microseconds
@@ -51,13 +53,13 @@ move_base_msgs::MoveBaseGoal goal;
 
 
 //CONSTRUCTOR
-ControllerClass::ControllerClass() : node_handle(""),node_handle2(""),node_handle3(""), spinner(0) {
+ControllerClass::ControllerClass() : node_handle(""),node_handle2(""),node_handle3(""), spinner2(0,&secondQueue), spinner3(0,&thirdQueue) {
   
   x_goal = 0;
   y_goal = 0;
   ROS_INFO("Init Started");
 
-  spinner.start();
+  //spinner.start();
   
   
   pubStateInfo = node_handle.advertise<std_msgs::String>("controller_stateinfo", 10);
@@ -67,34 +69,37 @@ ControllerClass::ControllerClass() : node_handle(""),node_handle2(""),node_handl
   service_goal = node_handle.advertiseService("/set_goal", &ControllerClass::set_goal, this);
   
   ros::SubscribeOptions ops;
-  ops.template init<std_msgs::String>("/cancel",1, &ControllerClass::CancelCallBack, this);
+  ops.template initByFullCallbackType<std_msgs::String>("/cancel",1, boost::bind(&ControllerClass::CancelCallBack, this, _1));
   ops.allow_concurrent_callbacks = true;
+  
   subMode = node_handle.subscribe(ops);
    //= node_handle.subscribe("/current_mode",1, &ControllerClass::ModeCallBack, this);
   
   // Create a second NodeHandle
-  ros::CallbackQueue secondQueue;
+  
   node_handle2.setCallbackQueue(&secondQueue);
-  node_handle2.subscribe("controller_cmd_vel", 10, &ControllerClass::UserDriveCallBack,this);
-
+  secondQueue.callAvailable(ros::WallDuration());
+  subCmdVelRemapped = node_handle2.subscribe("controller_cmd_vel", 10, &ControllerClass::UserDriveCallBack,this);
+  spinner2.start();
   // Spawn a new thread for high-priority callbacks.
-  std::thread prioritySpinThread([&secondQueue]() {
-  ros::SingleThreadedSpinner spinner;
-  spinner.spin(&secondQueue);
-  });
-  prioritySpinThread.join();
+  //std::thread prioritySpinThread([&secondQueue]() {
+  //ros::SingleThreadedSpinner spinner;
+  //spinner.spin(&secondQueue);
+  //});
+  //prioritySpinThread.join();
   
   // Create a third NodeHandle
-  ros::CallbackQueue thirdQueue;
+  
   node_handle3.setCallbackQueue(&thirdQueue);
-  node_handle3.subscribe("scan", 1, &ControllerClass::LaserScanParserCallBack, this);
-
+  subScanner = node_handle3.subscribe("scan", 1, &ControllerClass::LaserScanParserCallBack, this);
+  spinner3.start();
+  
   // Spawn a new thread for high-priority callbacks.
-  std::thread prioritySpinThread2([&thirdQueue]() {
-  ros::SingleThreadedSpinner spinner;
-  spinner.spin(&thirdQueue);
-  });
-  prioritySpinThread.join();
+  //std::thread prioritySpinThread2([&thirdQueue]() {
+  //ros::SingleThreadedSpinner spinner;
+  //spinner.spin(&thirdQueue);
+  //});
+  //prioritySpinThread.join();
 	
 	//subCmdVelRemapped = node_handle.subscribe("controller_cmd_vel", 10, &ControllerClass::UserDriveCallback,this);
   //subScanner = node_handle.subscribe("scan", 1, &ControllerClass::LaserScanParserCallBack, this);
@@ -357,7 +362,7 @@ void ControllerClass::UserDriveCallBack(const geometry_msgs::Twist::ConstPtr& ms
 
 int main(int argc, char **argv) {
   // Init ROS node
-  ros::init(argc, argv, "controller_node");
+  ros::init(argc, argv, "final_controller");
   	
   ControllerClass controller_object;
   

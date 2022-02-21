@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string>
+#include <termios.h>
 #include <future>
 #include <thread>
 #include <chrono>

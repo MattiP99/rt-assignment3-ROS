@@ -230,10 +230,17 @@ int UserClass::mode_choice(){
 }
 
 
-int UserClass::cancelGoal () {
+void UserClass::cancelGoal () {
   std::string inputStr;
+  std::string cancel;
+   
   
   actionlib_msgs::GoalID goalCancelID;
+  std_msgs::String cancel_msg;
+  
+  
+  cancel_msg.data = cancel;
+  
   terminalColor(37, false);
   ROS_INFO("\n Press q in order to cancel the goal or anyother key to continue");
   std::cin >> inputStr;
@@ -250,8 +257,11 @@ int UserClass::cancelGoal () {
       goalCancelID.stamp.sec = 0;
       goalCancelID.stamp.nsec = 0;
       goalCancelID.id = "";
+      
+      cancel= "cancel";
+      cancel_msg.data = cancel.c_str();
 
-      pub_cancel.publish("cancel");
+      pub_cancel.publish(cancel_msg);
       terminalColor(32, false);
       displayText("\nGoal has been cancelled.\n", TEXT_DELAY);
 
@@ -290,7 +300,7 @@ int UserClass::getUserChoice () {
 
 int main (int argc, char **argv)
 {
- 	ros::init(argc, argv, "user_node");
+ 	ros::init(argc, argv, "final_ui");
  	ros::NodeHandle nh;
    	
   	UserClass us;

@@ -9,9 +9,9 @@
 
   <!-- Essential Nodes -->
   <node name="final_ui" pkg="final_assignment"
-    type="final_ui" required="false" output="screen"/>
+    type="final_ui" required="false" output="screen" launch-prefix="gnome-terminal -- sh -c"/>
   
 
   <node name="final_controller" pkg="final_assignment" output="screen"
-    type="final_controller" launch-prefix="gnome-terminal -- sh -c"/>
+    type="final_controller"  launch-prefix="gnome-terminal -- sh -c"/>
 </launch>

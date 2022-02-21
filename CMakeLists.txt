@@ -141,8 +141,8 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
- add_executable(rt1a3_ui src/ui.cpp)
- add_executable(rt1a3_controller src/controller.cpp)
+ add_executable(final_ui src/ui.cpp)
+ add_executable(final_controller src/controller.cpp)
  
 
 ## Rename C++ executable without prefix
@@ -154,16 +154,16 @@ include_directories(
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 
-add_dependencies(rt1a3_ui ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-add_dependencies(rt1a3_controller ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(final_ui ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(final_controller ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(rt1a3_ui
+target_link_libraries(final_ui
   ${catkin_LIBRARIES}
 )
-target_link_libraries(rt1a3_controller
+target_link_libraries(final_controller
   ${catkin_LIBRARIES}
 )
 

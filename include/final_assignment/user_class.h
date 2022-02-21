@@ -18,7 +18,7 @@ class UserClass{
   		void timeoutTimerCallback(const ros::TimerEvent& event);
   		int mode_choice();
   		int getUserChoice();
-  		int cancelGoal();
+  		void cancelGoal();
   		void receiveStateInfo(const std_msgs::String::ConstPtr& info); 
   		
 

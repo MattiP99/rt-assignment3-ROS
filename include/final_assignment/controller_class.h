@@ -7,6 +7,7 @@
 #include "std_msgs/Int32.h"
 #include "std_msgs/String.h"
 #include <string>
+#include <termios.h>
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/client/terminal_state.h>
 #include <actionlib_msgs/GoalID.h>
@@ -42,7 +43,11 @@ private:
   ros::NodeHandle node_handle3;
 
   // reate Assync spiner
-  ros::AsyncSpinner spinner;
+  ros::AsyncSpinner spinner2;
+  ros::AsyncSpinner spinner3;
+  
+  ros::CallbackQueue secondQueue;
+  ros::CallbackQueue thirdQueue;
   //ACTION CLIENT
  //Prepare the goal to be sent
  //typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> ac;
@@ -62,11 +67,11 @@ private:
   ros::ServiceServer service_goal;  
   
   int current_mode;
-  bool goal_is_defined;
-  static geometry_msgs::Twist velFromTeleop; // Velocity sent over from teleop_twist_keyboard
+  bool goal_is_defined; 
   double x_goal;
   double y_goal;
   std::string GoalID;
+  geometry_msgs::Twist velFromTeleop; // Velocity sent over from teleop_twist_keyboard
 
   
   
