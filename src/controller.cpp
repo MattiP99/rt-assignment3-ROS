@@ -26,7 +26,12 @@
 const int TEXT_DELAY = 25000; // microseconds
 double actionTimeout;
 double brakethreshold;
-ros::Timer timeoutTimer;
+//ros::Timer timeoutTimer;
+//ACTIONCLIENT
+  
+actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> ac("move_base", true);
+std::chrono::high_resolution_clock::time_point time_start;  
+std::chrono::high_resolution_clock::time_point time_end;
 
 
 
@@ -54,9 +59,7 @@ ControllerClass::ControllerClass() : node_handle(""),node_handle2(""),node_handl
 
   spinner.start();
   
-  //ACTIONCLIENT
-  //MoveBaseClient 
-  ac("move_base", true);
+  
   pubStateInfo = node_handle.advertise<std_msgs::String>("controller_stateinfo", 10);
   pubCmdVel = node_handle.advertise<geometry_msgs::Twist>("cmd_vel",10);
   
@@ -154,7 +157,6 @@ void ControllerClass::sendInfo(std::string msg){
 
 
 void ControllerClass::timeoutTimerCallback(const ros::TimerEvent& event) {
-  	isComplete = true;
 
   	clearTerminal();
   	terminalColor(31, true);
@@ -176,7 +178,11 @@ bool ControllerClass::set_goal(final_assignment::Goal_service::Request  &req, fi
     
     //The goal is only to be considered if the mode 1 is active
     if (current_mode ==1){
-        timeoutTimer = node_handle.createTimer(ros::Duration(actionTimeout), &ControllerClass::timeoutTimerCallback,this); //NON SONO SICURI DI COME SI SCRIVA LA FUNZIONE NEL TIMER!!!!!!
+        //timeoutTimer = node_handle.createTimer(ros::Duration(actionTimeout), &ControllerClass::timeoutTimerCallback,this); //NON SONO SICURI DI COME SI SCRIVA LA FUNZIONE NEL TIMER!!!!!!
+        
+        // Set the starting time
+	time_start = std::chrono::high_resolution_clock::now();
+	
         //update the new goal, regarless where this goal is in the map
         ROS_INFO("request is x=%f and y=%f", req.x, req.y);
         goal.target_pose.header.frame_id = "map";
@@ -189,11 +195,8 @@ bool ControllerClass::set_goal(final_assignment::Goal_service::Request  &req, fi
         
         res.success = true;
         ROS_INFO("The goal is now set to (%f, %f): ", goal.target_pose.pose.position.x, goal.target_pose.pose.position.y);
-        ac.waitForServer()
-        ac.sendGoal(goal,
-        	    boost::bind(&ControllerClass::doneCb, this, _1, _2),
-                    boost::bind(&ControllerClass::activeCb, this),
-                    boost::bind(&ControllerClass::feedbackCb, this, _1));
+        ac.waitForServer();
+        ac.sendGoal(goal);
         
         goal_is_defined = true;
         
@@ -223,8 +226,8 @@ bool ControllerClass::set_goal(final_assignment::Goal_service::Request  &req, fi
 void ControllerClass::currentStatus(const move_base_msgs::MoveBaseActionFeedback::ConstPtr& msg) {
      
     // Update the goal ID if there is a new goal
-    if (this.GoalID != msg->status.goal_id.id) {
-        this.GoalID = msg->status.goal_id.id;
+    if (GoalID != msg->status.goal_id.id) {
+        GoalID = msg->status.goal_id.id;
     }
     
     // If there is a goal check if the robot has reached the goal or is trying to reach the goal for a too long time
@@ -237,8 +240,8 @@ void ControllerClass::currentStatus(const move_base_msgs::MoveBaseActionFeedback
 	float robot_y = msg->feedback.base_position.pose.position.y;
     
 	// Compute the error from the actual position and the goal position
-	dist_x = robot_x - this.x_goal;
-	dist_y = robot_y - this.y_goal;
+	dist_x = robot_x - x_goal;
+	dist_y = robot_y - y_goal;
 
 	// The robot is on the goal position
 	if (abs(dist_x) <= GOAL_TH && abs(dist_y) <= GOAL_TH)
@@ -249,7 +252,9 @@ void ControllerClass::currentStatus(const move_base_msgs::MoveBaseActionFeedback
 
     	//time_end = std::chrono::high_resolution_clock::now();
         //auto time = std::chrono::duration_cast<std::chrono::microseconds>(time_end - time_start).count();
-        if(timeoutTimer.toSec() > actionTimeout) //TIMEOUT)
+        time_end = std::chrono::high_resolution_clock::now();
+        auto time = std::chrono::duration_cast<std::chrono::microseconds>(time_end - time_start).count();
+        if(time > actionTimeout) //TIMEOUT)
         {
         	printf("The actual goal can't be reached!\n");
         	ac.cancelGoal(); // Cancel the goal if it can't be reached
@@ -260,7 +265,7 @@ void ControllerClass::currentStatus(const move_base_msgs::MoveBaseActionFeedback
 
 void ControllerClass::CancelCallBack(const std_msgs::String &msg){
     if( msg.data == "cancel"){
-    	ac->cancelGoal();
+    	ac.cancelGoal();
     	clearTerminal();
     	terminalColor(37,false);
     	displayText("The goal has been canceled", TEXT_DELAY);
@@ -355,6 +360,7 @@ int main(int argc, char **argv) {
   ros::init(argc, argv, "controller_node");
   	
   ControllerClass controller_object;
+  
 
   ros::waitForShutdown();
 

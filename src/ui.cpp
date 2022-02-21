@@ -69,7 +69,7 @@ UserClass::~UserClass() { ros::shutdown(); }
 
 void UserClass::receiveStateInfo(const std_msgs::String::ConstPtr& info){
 
- displayText(info.toString().c_str(), TEXT_DELAY);
+ displayText(info->data, TEXT_DELAY);
 } 
 
 int UserClass::mode_choice(){

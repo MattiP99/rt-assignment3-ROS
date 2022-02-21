@@ -27,7 +27,7 @@ public:
   void timeoutTimerCallback(const ros::TimerEvent& event);
   void sendInfo(std::string msg);
   void LaserScanParserCallBack(const sensor_msgs::LaserScan::ConstPtr& scaninfo);
-  void UserDriveCallBack(const geometry_msgs::Twist& msg);
+  void UserDriveCallBack(const geometry_msgs::Twist::ConstPtr& msg);
   void CancelCallBack(const std_msgs::String& msg);
   void init_param();
   void collisionAvoidance();
@@ -45,7 +45,7 @@ private:
   ros::AsyncSpinner spinner;
   //ACTION CLIENT
  //Prepare the goal to be sent
- typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> ac;
+ //typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> ac;
 
   //PUBLISHER
   ros::Publisher pubStateInfo;
