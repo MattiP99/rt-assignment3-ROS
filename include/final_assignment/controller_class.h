@@ -23,14 +23,14 @@ public:
   
   
   
-  ControllerClass();
+  ControllerClass(ros::NodeHandle* node_handle);
   ~ControllerClass();
   void timeoutTimerCallback(const ros::TimerEvent& event);
   void sendInfo(std::string msg);
   void LaserScanParserCallBack(const sensor_msgs::LaserScan::ConstPtr& scaninfo);
   void UserDriveCallBack(const geometry_msgs::Twist::ConstPtr& msg);
   void CancelCallBack(const std_msgs::String& msg);
-  void init_param();
+  //void init_param();
   void collisionAvoidance();
   void currentStatus(const move_base_msgs::MoveBaseActionFeedback::ConstPtr& msg);
   bool switch_mode(final_assignment::Behavior_mode_service::Request  &req, final_assignment::Behavior_mode_service::Response &res);

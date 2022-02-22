@@ -1,48 +1,52 @@
 #include <iostream>
 #include <string>
+#include <sstream>
 #include <termios.h>
 #include <future>
 #include <thread>
 #include <chrono>
 #include <unistd.h>
-#include <termios.h>
+
 
 /// Some utility functions
 
-/**
- * Clears the input buffer
- */
+
+
 void clearInputBuffer() {
   std::cin.ignore(std::numeric_limits<std::streamsize>::max(),'\n');
 }
-
-
 /**
  * Changes color of terminal text
  * @param colorCode  ANSI color code
  * @param isBold     Bold text or not
  */
-void terminalColor(int colorCode, bool isBold) {
-  std::string specialCode = "";
-  if (isBold) {
-    specialCode = "1;";
-  }
+void terminalColor(const char colorCode) {
+  
 
-  std::cout << "\033[" << specialCode << colorCode << "m";
-  fflush(stdout);
+  //std::cout << "\033[" << specialCode << colorCode << "m";
+  //fflush(stdout);
+  //std::string s_final;
+  //std::string s;
+  //char ch = colorCode;
+  //s = "color ";
+  //s_final = s.push_back(ch);
+  std::stringstream stream;
+  stream << "color "<< colorCode;
+  std::cout << "Command to execute: '" << stream.str() << "'\n";
+  system(stream.str().c_str());
 }
 
 /**
  * Clears the terminal and resets it to initial state
  */
 void clearTerminal() {
-  printf("\033c");
+  //printf("\033c");
   system("clear");
-  terminalColor(31, true);
+  terminalColor('4');
   printf("==========================\n");
   printf("= MOBILE ROBOT CONTROLLER =\n");
   printf("==========================\n\n");
-  terminalColor(37, true);
+  terminalColor('4');
   fflush(stdout);
 }
 

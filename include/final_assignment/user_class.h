@@ -10,7 +10,7 @@
 class UserClass{
 	public:
  	
- 		UserClass();
+ 		UserClass(ros::NodeHandle* nodehandle);
   		~UserClass();
   		
   		//FUNCTIONS

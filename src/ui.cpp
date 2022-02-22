@@ -31,11 +31,11 @@ const int TEXT_DELAY = 25000; // microseconds
 final_assignment::Goal_service goal_srv;
 final_assignment::Behavior_mode_service mode_srv;
 
-UserClass::UserClass() : node_handle(""), spinner(0) {
+UserClass::UserClass(ros::NodeHandle* nodehandle): node_handle(*nodehandle), spinner(0) {
 
   ROS_INFO("Init Started");
 
-  spinner.start();
+  
   
   
   isUserDeciding = true;
@@ -56,11 +56,12 @@ UserClass::UserClass() : node_handle(""), spinner(0) {
   
   client_mode = node_handle.serviceClient<final_assignment::Behavior_mode_service>("/switch_mode");
   client_goal = node_handle.serviceClient<final_assignment::Goal_service>("/set_goal");
-  
+  spinner.start();
    
   
   
   ROS_INFO("Init Finished");
+  
 }
 
 UserClass::~UserClass() { ros::shutdown(); }
@@ -103,9 +104,9 @@ int UserClass::mode_choice(){
         clearTerminal();
 
         displayText("Mode: ", TEXT_DELAY);
-        terminalColor(36, true);
+        terminalColor('3');
         displayText("Autonomous Goal Point\n", TEXT_DELAY);
-        terminalColor(37, true);
+        terminalColor('9');
         isUserDeciding = true;
         // Get user input
         while (isUserDeciding) {
@@ -143,9 +144,9 @@ int UserClass::mode_choice(){
 
         clearInputBuffer();
         clearTerminal();
-        terminalColor(37, false);
+        terminalColor('3');
         displayText("Driving...\n", TEXT_DELAY);
-        terminalColor(36, false);
+        terminalColor('9');
         displayText("\nPress q to cancel the goal, or any other key to continue.\n", TEXT_DELAY);
 	
 	
@@ -182,7 +183,7 @@ int UserClass::mode_choice(){
         clearTerminal();
 
         displayText("Mode: ", TEXT_DELAY);
-        terminalColor(36, true);
+        terminalColor('3');
         displayText("Manual Drive\n", TEXT_DELAY);
 
         //pubManualDrive.publish(msgBool);
@@ -200,7 +201,7 @@ int UserClass::mode_choice(){
         clearTerminal();
 
         displayText("Mode: ", TEXT_DELAY);
-        terminalColor(36, true);
+        terminalColor('3');
         displayText("Assisted Drive\n", TEXT_DELAY);
 
         //pubAssistedDrive.publish(msgBool);
@@ -209,9 +210,9 @@ int UserClass::mode_choice(){
 	
       default:
       {
-        terminalColor(41, true);
+        terminalColor('3');
         displayText("\nInvalid. Please select a valid option.\n", TEXT_DELAY);
-        terminalColor(37, false);
+        terminalColor('9');
         ros::Duration(1).sleep();
         inputChoice = getUserChoice();
         }break;
@@ -241,7 +242,7 @@ void UserClass::cancelGoal () {
   
   cancel_msg.data = cancel;
   
-  terminalColor(37, false);
+  terminalColor('3');
   ROS_INFO("\n Press q in order to cancel the goal or anyother key to continue");
   std::cin >> inputStr;
 
@@ -249,7 +250,7 @@ void UserClass::cancelGoal () {
     if (inputStr.c_str() == "q") {
       // "q" pressed - cancel goal!
       clearTerminal();
-      terminalColor(37, false);
+      terminalColor('3');
       ROS_INFO("Autonomous driving cancel request by user.");
       displayText("Sending goal cancel request...\n", TEXT_DELAY);
 
@@ -262,15 +263,15 @@ void UserClass::cancelGoal () {
       cancel_msg.data = cancel.c_str();
 
       pub_cancel.publish(cancel_msg);
-      terminalColor(32, false);
+      terminalColor('4');
       displayText("\nGoal has been cancelled.\n", TEXT_DELAY);
 
       isComplete = true;
     } else {
       clearTerminal();
-      terminalColor(37, false);
+      terminalColor('3');
       displayText("Driving...\n", TEXT_DELAY);
-      terminalColor(36, false);
+      terminalColor('3');
       displayText("\nPress q to cancel the goal, or any other key to continue.\n", TEXT_DELAY);
     }
   }
@@ -281,13 +282,13 @@ void UserClass::cancelGoal () {
 int UserClass::getUserChoice () {
   std::string s;
   clearTerminal();
-  terminalColor(37, false);
+  terminalColor('3');
   displayText("Choose one of the following options: \n", TEXT_DELAY);
-  terminalColor(32, false);
+  terminalColor('9');
   displayText("1. Autonomously reach coordinates\n", TEXT_DELAY);
   displayText("2. Manual driving\n", TEXT_DELAY);
   displayText("3. Assisted driving\n", TEXT_DELAY);
-  terminalColor(37, false);
+  terminalColor('3');
   std::cin >> s;
   inputChoice = atoi(s.c_str());
   
@@ -303,7 +304,7 @@ int main (int argc, char **argv)
  	ros::init(argc, argv, "final_ui");
  	ros::NodeHandle nh;
    	
-  	UserClass us;
+  	UserClass us(&nh);
   	
     	ros::waitForShutdown();
 }

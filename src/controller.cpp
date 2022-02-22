@@ -31,7 +31,8 @@ double brakethreshold;
 //ros::Timer timeoutTimer;
 //ACTIONCLIENT
   
-actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> ac("move_base", true);
+typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> ActionClient;
+ActionClient *acPointer;
 std::chrono::high_resolution_clock::time_point time_start;  
 std::chrono::high_resolution_clock::time_point time_end;
 
@@ -53,7 +54,7 @@ move_base_msgs::MoveBaseGoal goal;
 
 
 //CONSTRUCTOR
-ControllerClass::ControllerClass() : node_handle(""),node_handle2(""),node_handle3(""), spinner2(0,&secondQueue), spinner3(0,&thirdQueue) {
+ControllerClass::ControllerClass(ros::NodeHandle* nodehandle) : node_handle(*nodehandle), node_handle2(""),node_handle3(""), spinner2(0,&secondQueue), spinner3(0,&thirdQueue) {
   
   x_goal = 0;
   y_goal = 0;
@@ -127,9 +128,9 @@ bool ControllerClass::switch_mode(final_assignment::Behavior_mode_service::Reque
             clearTerminal();
             
             displayText("Mode: ", TEXT_DELAY);
-            terminalColor(36, true);
+            terminalColor('3');
             displayText("Manual Drive\n", TEXT_DELAY);
-            terminalColor(37,false);
+            terminalColor('3');
             displayText("\nKeys to control the robot:\n"
                     "---------------------------\n"
                     "Moving around:\n"
@@ -164,7 +165,7 @@ void ControllerClass::sendInfo(std::string msg){
 void ControllerClass::timeoutTimerCallback(const ros::TimerEvent& event) {
 
   	clearTerminal();
-  	terminalColor(31, true);
+  	terminalColor('4');
   	std::cout << "Action timed out! (Are you sure the goal was reachable?)\n";
   	fflush(stdout);
 	}
@@ -174,6 +175,8 @@ void ControllerClass::timeoutTimerCallback(const ros::TimerEvent& event) {
 //service to set goal
 bool ControllerClass::set_goal(final_assignment::Goal_service::Request  &req, final_assignment::Goal_service::Response &res){
      goal_is_defined = false;
+     ActionClient ac("move_base", true);
+     acPointer = &ac;
      
     if (node_handle.getParam("/rt1a3_action_timeout", actionTimeout)) {
     // ROS_INFO("Action timeout successfully retrieved from parameter server");
@@ -200,7 +203,7 @@ bool ControllerClass::set_goal(final_assignment::Goal_service::Request  &req, fi
         
         res.success = true;
         ROS_INFO("The goal is now set to (%f, %f): ", goal.target_pose.pose.position.x, goal.target_pose.pose.position.y);
-        ac.waitForServer();
+        //ac.waitForServer();
         ac.sendGoal(goal);
         
         goal_is_defined = true;
@@ -229,7 +232,8 @@ bool ControllerClass::set_goal(final_assignment::Goal_service::Request  &req, fi
 	
 	
 void ControllerClass::currentStatus(const move_base_msgs::MoveBaseActionFeedback::ConstPtr& msg) {
-     
+     ActionClient ac("move_base", true);
+     acPointer = &ac;
     // Update the goal ID if there is a new goal
     if (GoalID != msg->status.goal_id.id) {
         GoalID = msg->status.goal_id.id;
@@ -253,6 +257,7 @@ void ControllerClass::currentStatus(const move_base_msgs::MoveBaseActionFeedback
 	{
 	     printf("Goal reached\n");
 	     ac.cancelGoal();       //NON SO SE è GIUSTO COSI RiGUARDA
+	     ros::shutdown();
 	}
 
     	//time_end = std::chrono::high_resolution_clock::now();
@@ -263,36 +268,42 @@ void ControllerClass::currentStatus(const move_base_msgs::MoveBaseActionFeedback
         {
         	printf("The actual goal can't be reached!\n");
         	ac.cancelGoal(); // Cancel the goal if it can't be reached
+        	ros::shutdown();
         	//EXIT? ROS_SHUTDOWN?
         }
     }
 }
 
 void ControllerClass::CancelCallBack(const std_msgs::String &msg){
+    ActionClient ac("move_base", true);
+    acPointer = &ac;
     if( msg.data == "cancel"){
     	ac.cancelGoal();
     	clearTerminal();
-    	terminalColor(37,false);
+    	terminalColor('4');
     	displayText("The goal has been canceled", TEXT_DELAY);
+    	ros::shutdown();
     }
     
 }
 
 
 //PROBABILMENTE FUNZIONE INUTILE; QUESTO CODICE POTREI METTERLO IN UN'ALTRA FUNZIONE O NEL MAIN...
-void ControllerClass::init_param(){
+/*
+void init_param(){
 	// Set the timeout threshold on the parameter server so it can be tweaked in runtime
-  	if(!node_handle.hasParam("rt1a3_action_timeout")){
-  		node_handle.setParam("/rt1a3_action_timeout", ACTION_TIMEOUT_DEFAULT);
+	ControllerClass cc;
+  	if(!cc.node_handle.hasParam("rt1a3_action_timeout")){
+  		cc.node_handle.setParam("/rt1a3_action_timeout", ACTION_TIMEOUT_DEFAULT);
   	}
   	
   	//Set the brake threashold on the parameter server so it can be tweaked in runtime
-  	if(!node_handle.hasParam("rt1a3_brake_threshold")){
-  		node_handle.setParam("/rt1a3_brake_threshold", BRAKE_THRESHOLD_DEFAULT);
+  	if(!cc.node_handle.hasParam("rt1a3_brake_threshold")){
+  		cc.node_handle.setParam("/rt1a3_brake_threshold", BRAKE_THRESHOLD_DEFAULT);
   	}
 }
 
-
+*/
 
 void ControllerClass::LaserScanParserCallBack(const sensor_msgs::LaserScan::ConstPtr& scaninfo) {
  	const int NUM_SECTORS = 2;
@@ -360,11 +371,30 @@ void ControllerClass::UserDriveCallBack(const geometry_msgs::Twist::ConstPtr& ms
 }
 
 
+void initActionClients()
+{
+  ActionClient ac("move_base", true);
+  acPointer = &ac;
+  ac.waitForServer();
+  
+}
+
 int main(int argc, char **argv) {
   // Init ROS node
   ros::init(argc, argv, "final_controller");
+  ros::NodeHandle nh;
+  initActionClients();
+  if(!nh.hasParam("rt1a3_action_timeout")){
+  		nh.setParam("/rt1a3_action_timeout", ACTION_TIMEOUT_DEFAULT);
+  	}
   	
-  ControllerClass controller_object;
+  //Set the brake threashold on the parameter server so it can be tweaked in runtime
+  if(!nh.hasParam("rt1a3_brake_threshold")){
+  	nh.setParam("/rt1a3_brake_threshold", BRAKE_THRESHOLD_DEFAULT);
+  	}
+  
+  
+  ControllerClass controller_object(&nh);
   
 
   ros::waitForShutdown();
