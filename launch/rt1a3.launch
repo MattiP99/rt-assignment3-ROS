@@ -13,5 +13,5 @@
   
 
   <node name="final_controller" pkg="final_assignment" output="screen"
-    type="final_controller"  launch-prefix="xterm -e"/>
+    type="final_controller"  />
 </launch>

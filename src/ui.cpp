@@ -34,10 +34,6 @@ final_assignment::Behavior_mode_service mode_srv;
 UserClass::UserClass(ros::NodeHandle* nodehandle): node_handle(*nodehandle), spinner(0) {
 
   ROS_INFO("Init Started");
-
-  
-  
-  
   isUserDeciding = true;
   isComplete = false;
   isAutonomous = false;
@@ -61,6 +57,7 @@ UserClass::UserClass(ros::NodeHandle* nodehandle): node_handle(*nodehandle), spi
   
   
   ROS_INFO("Init Finished");
+  mode_choice();
   
 }
 

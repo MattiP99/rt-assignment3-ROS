@@ -54,7 +54,7 @@ move_base_msgs::MoveBaseGoal goal;
 
 
 //CONSTRUCTOR
-ControllerClass::ControllerClass(ros::NodeHandle* nodehandle) : node_handle(*nodehandle), node_handle2(""),node_handle3(""), spinner2(0,&secondQueue), spinner3(0,&thirdQueue) {
+ControllerClass::ControllerClass(ros::NodeHandle* nodehandle) : node_handle(*nodehandle),spinner2(0,&secondQueue), spinner3(0,&thirdQueue){ // node_handle2(""),node_handle3(""), spinner2(0,&secondQueue), spinner3(0,&thirdQueue) {
   
   x_goal = 0;
   y_goal = 0;
@@ -78,9 +78,10 @@ ControllerClass::ControllerClass(ros::NodeHandle* nodehandle) : node_handle(*nod
   
   // Create a second NodeHandle
   
-  node_handle2.setCallbackQueue(&secondQueue);
+  //node_handle2.setCallBackQueue(&secondQueue);
+  node_handle.setCallbackQueue(&secondQueue);
   secondQueue.callAvailable(ros::WallDuration());
-  subCmdVelRemapped = node_handle2.subscribe("controller_cmd_vel", 10, &ControllerClass::UserDriveCallBack,this);
+  subCmdVelRemapped = node_handle.subscribe("controller_cmd_vel", 10, &ControllerClass::UserDriveCallBack,this);
   spinner2.start();
   // Spawn a new thread for high-priority callbacks.
   //std::thread prioritySpinThread([&secondQueue]() {
@@ -91,8 +92,9 @@ ControllerClass::ControllerClass(ros::NodeHandle* nodehandle) : node_handle(*nod
   
   // Create a third NodeHandle
   
-  node_handle3.setCallbackQueue(&thirdQueue);
-  subScanner = node_handle3.subscribe("scan", 1, &ControllerClass::LaserScanParserCallBack, this);
+  node_handle.setCallbackQueue(&thirdQueue);
+  thirdQueue.callAvailable(ros::WallDuration());
+  subScanner = node_handle.subscribe("scan", 1, &ControllerClass::LaserScanParserCallBack, this);
   spinner3.start();
   
   // Spawn a new thread for high-priority callbacks.
