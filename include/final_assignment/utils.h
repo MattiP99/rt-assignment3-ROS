@@ -25,15 +25,15 @@ void terminalColor(const char colorCode) {
 
   //std::cout << "\033[" << specialCode << colorCode << "m";
   //fflush(stdout);
-  //std::string s_final;
+  std::string result;
   //std::string s;
   //char ch = colorCode;
   //s = "color ";
   //s_final = s.push_back(ch);
   std::stringstream stream;
-  stream << "color "<< colorCode;
-  std::cout << "Command to execute: '" << stream.str() << "'\n";
-  system(stream.str().c_str());
+  stream << "color "<<colorCode<<"B";
+ result = stream.str();// std::cout << "Command to execute: '" << stream.str() << "'\n";
+  system(result.c_str());
 }
 
 /**

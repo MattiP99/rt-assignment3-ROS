@@ -12,6 +12,6 @@
     type="final_ui" required="false" output="screen" launch-prefix="xterm -e"/>
   
 
-  <node name="final_controller" pkg="final_assignment" output="screen"
+  <node name="final_controller" pkg="final_assignment" output="screen" launch-prefix="xterm -e"
     type="final_controller"  />
 </launch>

@@ -16,6 +16,8 @@
 #include <std_msgs/Bool.h>
 #include <std_msgs/String.h>
 #include <string>
+
+#include <std_srvs/SetBool.h>
 #include <geometry_msgs/Point.h>
 #include "geometry_msgs/Twist.h"
 
@@ -26,23 +28,31 @@
 #include <actionlib_msgs/GoalID.h>
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/client/terminal_state.h>
+#include <ros/callback_queue.h>
 
 const int TEXT_DELAY = 25000; // microseconds
 final_assignment::Goal_service goal_srv;
 final_assignment::Behavior_mode_service mode_srv;
 
-UserClass::UserClass(ros::NodeHandle* nodehandle): node_handle(*nodehandle), spinner(0) {
+
+UserClass::UserClass(ros::NodeHandle* nodehandle): node_handle(*nodehandle), spinner(1,&Queue) {
 
   ROS_INFO("Init Started");
   isUserDeciding = true;
   isComplete = false;
   isAutonomous = false;
+  isTimeout = false;
   
   inputX = 0;
   inputY = 0;
   
   //SUBSCRIBER
+  ros::CallbackQueue Queue;
+  node_handle.setCallbackQueue(&Queue);
+  Queue.callAvailable(ros::WallDuration());
   subStateInfo =node_handle.subscribe("controller_stateinfo", 100, &UserClass::receiveStateInfo, this);
+  spinner.start();
+  
   //PUBLISHERS
   
   pub_cancel = node_handle.advertise<std_msgs::String>("/cancel", 1);
@@ -52,6 +62,7 @@ UserClass::UserClass(ros::NodeHandle* nodehandle): node_handle(*nodehandle), spi
   
   client_mode = node_handle.serviceClient<final_assignment::Behavior_mode_service>("/switch_mode");
   client_goal = node_handle.serviceClient<final_assignment::Goal_service>("/set_goal");
+  client_timeout = node_handle.serviceClient<std_srvs::SetBool>("/timeout");
   spinner.start();
    
   
@@ -61,13 +72,23 @@ UserClass::UserClass(ros::NodeHandle* nodehandle): node_handle(*nodehandle), spi
   
 }
 
-UserClass::~UserClass() { ros::shutdown(); }
+UserClass::~UserClass() { ros::shutdown();}
 
 
 
-void UserClass::receiveStateInfo(const std_msgs::String::ConstPtr& info){
+void UserClass::receiveStateInfo(const std_msgs::Bool::ConstPtr& info){
 
- displayText(info->data, TEXT_DELAY);
+ isComplete = info->data;
+ if(isComplete == true){
+ 	clearTerminal();
+ 	
+ 	displayText("the goal has been reached\n ", TEXT_DELAY);
+        terminalColor('3');
+        displayText("closing ROS\n", TEXT_DELAY);
+        terminalColor('9');
+        ros::shutdown();
+ 	}
+ 
 } 
 
 int UserClass::mode_choice(){
@@ -88,12 +109,12 @@ int UserClass::mode_choice(){
 	mode_srv.request.mode = 1;
 	
 	//CLASS VARIABLES
-        isUserDeciding = false;
+        //isUserDeciding = false;
         isComplete = false;
         isAutonomous = true;
         
         if (node_handle.getParam("/rt1a3_action_timeout", actionTimeout)) {
-          // ROS_INFO("Action timeout successfully retrieved from parameter server");
+           ROS_INFO("Action timeout successfully retrieved from parameter server");
         } else {
           ROS_ERROR("Failed to retrieve action timeout from parameter server");
         }
@@ -105,6 +126,7 @@ int UserClass::mode_choice(){
         displayText("Autonomous Goal Point\n", TEXT_DELAY);
         terminalColor('9');
         isUserDeciding = true;
+        
         // Get user input
         while (isUserDeciding) {
           std::string inputX_str;
@@ -128,45 +150,13 @@ int UserClass::mode_choice(){
 	
 	goal_srv.request.x = inputX;
 	goal_srv.request.y = inputY;
-	client_goal.waitForExistence();
-	if(client_goal.call(goal_srv)){
-		if(goal_srv.response.success == true){
-			displayText("INPUT RECEIVED CORRECTLY, starting the timer",TEXT_DELAY);
-		}else{
-			displayText("input not yet received",TEXT_DELAY);
-		}
-	}; //MAYBE CHECK SOMETHING
-	
-  
-
-        clearInputBuffer();
+	//MAYBE CHECK SOMETHING
+	clearInputBuffer();
         clearTerminal();
         terminalColor('3');
         displayText("Driving...\n", TEXT_DELAY);
         terminalColor('9');
-        displayText("\nPress q to cancel the goal, or any other key to continue.\n", TEXT_DELAY);
-	
-	
         
-        // User is allowed to cancel the robot's goal point: listen for input!
-        // The input must be asynchronous!
-	//std::cin >> s;
-        
-
-        while (true) {
-          if (isComplete) {
-            displayText("\nTerminating program...\n", TEXT_DELAY);
-            ros::Duration(2).sleep();
-            return 0; // Exit because we are done!
-          }
-          else{
-          	//if(s.c_str()=="q"){
-			cancelGoal();          		
-          	}
-          }
-	      
-        //ros::spinOnce();
-        ros::Duration(1).sleep();
       }  break;
       
 
@@ -214,12 +204,28 @@ int UserClass::mode_choice(){
         inputChoice = getUserChoice();
         }break;
         
+    	}
     }
-    
     client_mode.waitForExistence(); //MAYBE IN THE WRONG POSITION
-    client_mode.call(mode_srv);
-  }
- 
+    if(client_mode.call(mode_srv)){
+    	if(mode_srv.response.success == true){
+    		displayText("success in calling mode server",TEXT_DELAY);
+    		}else{
+    		displayText("error in contacting the server",TEXT_DELAY);
+    		}
+    	}
+    
+    client_goal.waitForExistence();
+    if(client_goal.call(goal_srv)){
+    		  if(goal_srv.response.success == true){
+			displayText("INPUT RECEIVED CORRECTLY, starting the timer",TEXT_DELAY);
+			cancelGoal();
+		 }else
+			displayText("input not yet received",TEXT_DELAY);
+		
+	}
+    			
+    
   // NEW PART
   // ros::waitForShutdown();
   //ros::spin();
@@ -231,48 +237,48 @@ int UserClass::mode_choice(){
 void UserClass::cancelGoal () {
   std::string inputStr;
   std::string cancel;
+  std_srvs::SetBool timeout_srv;
    
-  
-  actionlib_msgs::GoalID goalCancelID;
+ 
   std_msgs::String cancel_msg;
-  
-  
   cancel_msg.data = cancel;
   
-  terminalColor('3');
-  ROS_INFO("\n Press q in order to cancel the goal or anyother key to continue");
-  std::cin >> inputStr;
+  while(!isComplete){
+  
+     if(client_timeout.call(timeout_srv)){
+     	isTimeout = timeout_srv.response.success;
+  	
+  	if( isTimeout == true) {
+  		displayText("time is ran out, target non reachable",TEXT_DELAY);
+  		ros::shutdown();
+  	}
+  	else{
+		terminalColor('3');
+  		ROS_INFO("\n Press q in order to cancel the goal or anyother key to continue");
+  		std::cin >> inputStr;
+    		
+    		if (inputStr.c_str() == "q") {
+      			// "q" pressed - cancel goal!
+      			clearTerminal();
+      			terminalColor('3');
+      			displayText("Autonomous driving cancel request by user.",TEXT_DELAY);
+      			displayText("Sending goal cancel request...\n", TEXT_DELAY);
 
-  if (!isComplete) {
-    if (inputStr.c_str() == "q") {
-      // "q" pressed - cancel goal!
-      clearTerminal();
-      terminalColor('3');
-      ROS_INFO("Autonomous driving cancel request by user.");
-      displayText("Sending goal cancel request...\n", TEXT_DELAY);
+            		cancel= "cancel";
+      			cancel_msg.data = cancel.c_str();
 
-      // Setting fields for cancel request
-      goalCancelID.stamp.sec = 0;
-      goalCancelID.stamp.nsec = 0;
-      goalCancelID.id = "";
-      
-      cancel= "cancel";
-      cancel_msg.data = cancel.c_str();
+      			pub_cancel.publish(cancel_msg);
+      			
+      			
 
-      pub_cancel.publish(cancel_msg);
-      terminalColor('4');
-      displayText("\nGoal has been cancelled.\n", TEXT_DELAY);
-
-      isComplete = true;
-    } else {
-      clearTerminal();
-      terminalColor('3');
-      displayText("Driving...\n", TEXT_DELAY);
-      terminalColor('3');
-      displayText("\nPress q to cancel the goal, or any other key to continue.\n", TEXT_DELAY);
-    }
+      			
+    			} 
+		  	
+	  }
+     }
   }
 }
+  
 
 
 
