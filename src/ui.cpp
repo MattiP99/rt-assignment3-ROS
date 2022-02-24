@@ -35,7 +35,7 @@ final_assignment::Goal_service goal_srv;
 final_assignment::Behavior_mode_service mode_srv;
 
 
-UserClass::UserClass(ros::NodeHandle* nodehandle): node_handle(*nodehandle), spinner(1,&Queue) {
+UserClass::UserClass(ros::NodeHandle* nodehandle): node_handle(*nodehandle), spinner(0,&Queue) {
 
   ROS_INFO("Init Started");
   isUserDeciding = true;
@@ -87,7 +87,14 @@ void UserClass::receiveStateInfo(const std_msgs::Bool::ConstPtr& info){
         displayText("closing ROS\n", TEXT_DELAY);
         terminalColor('9');
         ros::shutdown();
- 	}
+ } else{
+ 	displayText("time is expired, are you sure the target was reachable\n ", TEXT_DELAY);
+        terminalColor('3');
+        displayText("closing ROS\n", TEXT_DELAY);
+        terminalColor('9');
+        ros::shutdown();
+ 
+ }
  
 } 
 

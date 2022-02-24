@@ -19,7 +19,7 @@
 #include "final_assignment/Behavior_mode_service.h"
 #include "final_assignment/Goal_service.h"
 #include <std_srvs/SetBool.h>
-
+typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> ActionClient;
 
 class ControllerClass {
 public:
@@ -43,8 +43,12 @@ public:
   void autonomousDriving();
   void printTeleop();
   
-  
-  void currentStatus(const move_base_msgs::MoveBaseActionFeedback::ConstPtr& msg);
+  //ACTIONCLIENT RELATED
+  void feedbackCb(const move_base_msgs::MoveBaseActionFeedback::ConstPtr& msg);
+  void doneCb(const actionlib::SimpleClientGoalState& state, const move_base_msgs::MoveBaseActionResultConstPtr& result);
+  void activeCb();
+
+
   
   //SERVICES RELATED
   bool switch_mode(final_assignment::Behavior_mode_service::Request  &req, final_assignment::Behavior_mode_service::Response &res);
@@ -64,8 +68,7 @@ private:
   ros::CallbackQueue secondQueue;
   ros::CallbackQueue thirdQueue;
   //ACTION CLIENT
- //Prepare the goal to be sent
- //typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> ac;
+ ActionClient ac;
 
   //PUBLISHER
   ros::Publisher pubStateInfo;
@@ -84,6 +87,7 @@ private:
   
   int current_mode;
   bool goal_is_defined; 
+  bool isActionActive;
   double x_goal;
   double y_goal;
   double currentpose_x;

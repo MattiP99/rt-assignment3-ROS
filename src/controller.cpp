@@ -35,11 +35,11 @@ double brakethreshold;
 //ros::Timer timeoutTimer;
 //ACTIONCLIENT
   
-typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> ActionClient;
-ActionClient *acPointer;
+//typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> ActionClient;
+//ActionClient *acPointer;
 move_base_msgs::MoveBaseGoal goal;
-std::chrono::high_resolution_clock::time_point time_start;  
-std::chrono::high_resolution_clock::time_point time_end;
+//std::chrono::high_resolution_clock::time_point time_start;  
+//std::chrono::high_resolution_clock::time_point time_end;
 
 
 
@@ -61,7 +61,7 @@ const double GOAL_TH = 0.5;
 
 
 //CONSTRUCTOR
-ControllerClass::ControllerClass(ros::NodeHandle* nodehandle, ros::NodeHandle* nodehandle2,ros::NodeHandle* nodehandle3) : node_handle(*nodehandle), node_handle2(*nodehandle2), node_handle3(*nodehandle3),spinner2(1,&secondQueue), spinner3(1,&thirdQueue){ // node_handle2(""),node_handle3(""), spinner2(0,&secondQueue), spinner3(0,&thirdQueue) {
+ControllerClass::ControllerClass(ros::NodeHandle* nodehandle, ros::NodeHandle* nodehandle2,ros::NodeHandle* nodehandle3) : node_handle(*nodehandle), node_handle2(*nodehandle2), node_handle3(*nodehandle3),spinner2(2,&secondQueue), spinner3(2,&thirdQueue), ac("move_base",true){ // node_handle2(""),node_handle3(""), spinner2(0,&secondQueue), spinner3(0,&thirdQueue) {
   
   x_goal = 0;
   y_goal = 0;
@@ -70,6 +70,7 @@ ControllerClass::ControllerClass(ros::NodeHandle* nodehandle, ros::NodeHandle* n
   isArrived = false;
   manual = false;
   assisted = false;
+  isActionActive = false;
   ROS_INFO("Init Started");
 
   //spinner.start();
@@ -115,15 +116,42 @@ ControllerClass::ControllerClass(ros::NodeHandle* nodehandle, ros::NodeHandle* n
   
   spinner2.start();
   spinner3.start();
-  
+  ac.waitForServer();
   ROS_INFO("Init Finished");
   
-  mode_choice();
-  ros::waitForShutdown();
+  
 }
 
 //DISTRUCTOR
 ControllerClass::~ControllerClass() { ros::shutdown(); }
+
+
+
+void ControllerClass::doneCb(const actionlib::SimpleClientGoalState& state, const move_base_msgs::MoveBaseActionResultConstPtr& result)
+  {
+    ROS_INFO("Finished in state [%s]", state.toString().c_str());
+    
+    ros::shutdown();
+  }
+
+void ControllerClass::activeCb()
+{
+  displayText("Goal just went active",TEXT_DELAY);
+  isActionActive = true;
+}
+
+void ControllerClass::feedbackCb(const move_base_msgs::MoveBaseActionFeedback::ConstPtr& status) {
+
+    
+    // Update the goal ID if there is a new goal
+    if (GoalID != status->status.goal_id.id) {
+        GoalID = status->status.goal_id.id;
+    }
+    
+     currentpose_x = status->feedback.base_position.pose.position.x;
+     currentpose_y = status->feedback.base_position.pose.position.y;
+   
+    }
 
 
 // service for checking the timeout and telling the user
@@ -145,8 +173,9 @@ bool ControllerClass::set_goal(final_assignment::Goal_service::Request  &req, fi
 	if(req.x!= 0 && req.y!= 0){
 		x_goal= req.x;
 		y_goal = req.y;
+		current_mode = 1;
 		goal_is_defined = true;
-		time_start = std::chrono::high_resolution_clock::now();
+		//time_start = std::chrono::high_resolution_clock::now();
 		
 		res.success = true;
 	}
@@ -228,9 +257,9 @@ void ControllerClass::manualDriving(){
 	
 void ControllerClass::autonomousDriving(){
 
-     ActionClient ac("move_base", true);
-     acPointer = &ac;
+     
      move_base_msgs::MoveBaseActionFeedback status;
+     
      
     if (node_handle.getParam("/rt1a3_action_timeout", actionTimeout)) {
      ROS_INFO("Action timeout successfully retrieved from parameter server");
@@ -242,8 +271,8 @@ void ControllerClass::autonomousDriving(){
     //timeoutTimer = node_handle.createTimer(ros::Duration(actionTimeout), &ControllerClass::timeoutTimerCallback,this); //NON SONO SICURI DI COME SI SCRIVA LA FUNZIONE NEL TIMER!!!!!!
         
         // Set the starting time
-	
-	if(goal_is_defined){
+	ac.waitForServer();
+	if(goal_is_defined and current_mode == 1){
 		//update the new goal, regarless where this goal is in the map
         	//ROS_INFO("request is x=%f and y=%f", req.x, req.y);
         	goal.target_pose.header.frame_id = "map";
@@ -252,13 +281,16 @@ void ControllerClass::autonomousDriving(){
         	goal.target_pose.pose.position.y = y_goal;
         
         	ROS_INFO("The goal is now set to (%f, %f): ", goal.target_pose.pose.position.x, goal.target_pose.pose.position.y);
-        	//ac.waitForServer();
-        	ac.sendGoal(goal);
+        	
+        	
+        	ac.sendGoal(goal,
+        		boost::bind(&ControllerClass::doneCb, this, _1, _2),
+                	boost::bind(&ControllerClass::activeCb, this, _1, _2),
+                	boost::bind(&ControllerClass::feedbackCb, this, _1, _2)););
         	
         	
     		// If there is a goal check if the robot has reached the goal or is trying to reach the goal for a too long time
-    		if(goal_is_defined)
-    		{
+    		
     		/*
     			// Take the current robot position
         		double dist_x;
@@ -302,9 +334,10 @@ void ControllerClass::autonomousDriving(){
        		 }
     		*/
         	
-       	ac.waitForServer();
-  		if (ac.waitForResult(ros::Duration(actionTimeout))) {
-    			actionlib::SimpleClientGoalState state = ac.getState();
+       	//ac.waitForServer();
+       	isTimeout = ac.waitForResult(ros::Duration(actionTimeout));
+  		if (isTimeout) {
+    			 actionlib::SimpleClientGoalState state = ac.getState();
    			 ROS_INFO("Action finished: %s", state.toString().c_str());
    			 
    			 // If action does not finish before timeout, then cancel it and notify user
@@ -417,13 +450,6 @@ void ControllerClass::UserDriveCallBack(const geometry_msgs::Twist::ConstPtr& ms
 }
 
 
-void initActionClients()
-{
-  ActionClient ac("move_base", true);
-  acPointer = &ac;
-  ac.waitForServer();
-  
-}
 
 void ControllerClass::sendInfo(bool temp){
 	if(temp == true){
@@ -431,32 +457,18 @@ void ControllerClass::sendInfo(bool temp){
 		isArrived = true;
 	}else{
 		//time Expired
-		
-	
+		displayText("timeexpired", TEXT_DELAY);
 	}
   	std_msgs::Bool msg;
   	msg.data = temp;
   	pubStateInfo.publish(msg);
   }	
 	
-void ControllerClass::currentStatus(const move_base_msgs::MoveBaseActionFeedback::ConstPtr& status) {
-     ActionClient ac("move_base", true);
-     acPointer = &ac;
-    
-    // Update the goal ID if there is a new goal
-    if (GoalID != status->status.goal_id.id) {
-        GoalID = status->status.goal_id.id;
-    }
-    
-     currentpose_x = status->feedback.base_position.pose.position.x;
-     currentpose_y = status->feedback.base_position.pose.position.y;
-   
-    }
+
 
 
 void ControllerClass::CancelCallBack(const std_msgs::String &msg){
-    ActionClient ac("move_base", true);
-    acPointer = &ac;
+    
     if( msg.data == "cancel"){
     	
     	ac.cancelGoal();
@@ -474,11 +486,12 @@ int main(int argc, char **argv) {
   ros::NodeHandle nh;
   ros::NodeHandle nh2;
   ros::NodeHandle nh3;
-  initActionClients();
+  
   
   
   
   ControllerClass controller_object(&nh,&nh2,&nh3);
+  controller_object.mode_choice();
   
 
   ros::waitForShutdown();

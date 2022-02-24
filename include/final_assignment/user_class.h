@@ -52,10 +52,12 @@ class UserClass{
  		bool isAutonomous;
  		bool isUserDeciding;
  		bool isTimeout;
+ 		
  		double inputX;
  		double inputY;
  		int inputChoice;
  		int userInput;
+ 		
  		
   		
 };
