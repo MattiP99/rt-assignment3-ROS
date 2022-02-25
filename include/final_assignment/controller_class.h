@@ -14,7 +14,10 @@
 #include <actionlib/client/terminal_state.h>
 #include <actionlib_msgs/GoalID.h>
 #include <move_base_msgs/MoveBaseAction.h>
-#include <move_base_msgs/MoveBaseGoal.h>
+#include <move_base_msgs/MoveBaseActionGoal.h>
+#include <move_base_msgs/MoveBaseFeedback.h>
+#include <move_base_msgs/MoveBaseResult.h>
+#include <boost/bind.hpp>
 
 #include "final_assignment/Behavior_mode_service.h"
 #include "final_assignment/Goal_service.h"
@@ -38,14 +41,14 @@ public:
   void LaserScanParserCallBack(const sensor_msgs::LaserScan::ConstPtr& scaninfo);
   
   //Related with the mode chose
-  void mode_choice();
+ 
   void manualDriving();
   void autonomousDriving();
   void printTeleop();
   
   //ACTIONCLIENT RELATED
-  void feedbackCb(const move_base_msgs::MoveBaseActionFeedback::ConstPtr& msg);
-  void doneCb(const actionlib::SimpleClientGoalState& state, const move_base_msgs::MoveBaseActionResultConstPtr& result);
+  void feedbackCb(const move_base_msgs::MoveBaseFeedbackConstPtr& fb);
+  void doneCb(const actionlib::SimpleClientGoalState& state,const move_base_msgs::MoveBaseResultConstPtr& result);
   void activeCb();
 
 
@@ -62,9 +65,11 @@ private:
   ros::NodeHandle node_handle3;
 
   // reate Assync spiner
+  ros::AsyncSpinner spinner1;
   ros::AsyncSpinner spinner2;
   ros::AsyncSpinner spinner3;
   
+  ros::CallbackQueue firstQueue;
   ros::CallbackQueue secondQueue;
   ros::CallbackQueue thirdQueue;
   //ACTION CLIENT
@@ -97,7 +102,7 @@ private:
   bool manual;
   bool assisted;
   
-  std::string GoalID;
+  //std::string GoalID;
   geometry_msgs::Twist velFromTeleop; // Velocity sent over from teleop_twist_keyboard
 
   

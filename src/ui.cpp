@@ -37,6 +37,7 @@ final_assignment::Behavior_mode_service mode_srv;
 
 UserClass::UserClass(ros::NodeHandle* nodehandle): node_handle(*nodehandle), spinner(0,&Queue) {
 
+  
   ROS_INFO("Init Started");
   isUserDeciding = true;
   isComplete = false;
@@ -51,7 +52,7 @@ UserClass::UserClass(ros::NodeHandle* nodehandle): node_handle(*nodehandle), spi
   node_handle.setCallbackQueue(&Queue);
   Queue.callAvailable(ros::WallDuration());
   subStateInfo =node_handle.subscribe("controller_stateinfo", 100, &UserClass::receiveStateInfo, this);
-  spinner.start();
+
   
   //PUBLISHERS
   
@@ -63,11 +64,13 @@ UserClass::UserClass(ros::NodeHandle* nodehandle): node_handle(*nodehandle), spi
   client_mode = node_handle.serviceClient<final_assignment::Behavior_mode_service>("/switch_mode");
   client_goal = node_handle.serviceClient<final_assignment::Goal_service>("/set_goal");
   client_timeout = node_handle.serviceClient<std_srvs::SetBool>("/timeout");
-  spinner.start();
+  
    
   
   
   ROS_INFO("Init Finished");
+  spinner.start();
+  
   mode_choice();
   
 }
@@ -212,7 +215,7 @@ int UserClass::mode_choice(){
         }break;
         
     	}
-    }
+    
     client_mode.waitForExistence(); //MAYBE IN THE WRONG POSITION
     if(client_mode.call(mode_srv)){
     	if(mode_srv.response.success == true){
@@ -231,7 +234,7 @@ int UserClass::mode_choice(){
 			displayText("input not yet received",TEXT_DELAY);
 		
 	}
-    			
+    	}		
     
   // NEW PART
   // ros::waitForShutdown();
