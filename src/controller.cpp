@@ -298,6 +298,7 @@ void ControllerClass::manualDriving(){
 void ControllerClass::autonomousDriving(){
      
      move_base_msgs::MoveBaseActionFeedback status;
+     bool connection_success = false;
      
      
     if (node_handle.getParam("/rt1a3_action_timeout", actionTimeout)) {
@@ -310,8 +311,13 @@ void ControllerClass::autonomousDriving(){
     //timeoutTimer = node_handle.createTimer(ros::Duration(actionTimeout), &ControllerClass::timeoutTimerCallback,this); //NON SONO SICURI DI COME SI SCRIVA LA FUNZIONE NEL TIMER!!!!!!
         
         // Set the starting time
-	ac.waitForServer();
-	if(goal_is_defined and current_mode == 1){
+	connection_success= ac.waitForServer(ros::Duration(10.0));
+	if (! connection_success) {
+   	 ROS_WARN("  Error connecting to Robot. Terminate");
+   	 
+	}
+	else{
+		if(goal_is_defined and current_mode == 1){
 		//update the new goal, regarless where this goal is in the map
         	//ROS_INFO("request is x=%f and y=%f", req.x, req.y);
         	goal.target_pose.header.frame_id = "map";
@@ -396,6 +402,8 @@ void ControllerClass::autonomousDriving(){
         	
        	//ac.waitForServer();
        	
+	} 
+	
 	}
 
 
