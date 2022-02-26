@@ -12,6 +12,7 @@
 #include <actionlib/client/terminal_state.h>
 #include <actionlib_msgs/GoalID.h>
 #include <move_base_msgs/MoveBaseAction.h>
+#include <move_base_msgs/MoveBaseFeedback.h>
 #include <move_base_msgs/MoveBaseActionGoal.h>
 #include <move_base_msgs/MoveBaseActionFeedback.h>
 #include <boost/bind.hpp>
@@ -60,7 +61,7 @@ const double GOAL_TH = 0.5;
 
 
 //CONSTRUCTOR
-ControllerClass::ControllerClass(ros::NodeHandle* nodehandle, ros::NodeHandle* nodehandle2,ros::NodeHandle* nodehandle3) : node_handle(*nodehandle), node_handle2(*nodehandle2), node_handle3(*nodehandle3),spinner1(0,&firstQueue), spinner2(0,&secondQueue), spinner3(0,&thirdQueue), ac("move_base",true){ // node_handle2(""),node_handle3(""), spinner2(0,&secondQueue), spinner3(0,&thirdQueue) {
+ControllerClass::ControllerClass(ros::NodeHandle* nodehandle) : node_handle(*nodehandle), ac("move_base",true){
   
   x_goal = 0;
   y_goal = 0;
@@ -72,54 +73,39 @@ ControllerClass::ControllerClass(ros::NodeHandle* nodehandle, ros::NodeHandle* n
   isActionActive = false;
   ROS_INFO("Init Started");
   
-  
-
- 
-  
-  
-  
-  
   ros::SubscribeOptions ops;
   ops.template initByFullCallbackType<std_msgs::String>("/cancel",1, boost::bind(&ControllerClass::CancelCallBack, this, _1));
   ops.allow_concurrent_callbacks = true;
   
-  ros::CallbackQueue firstQueue;
-  node_handle.setCallbackQueue(&firstQueue);
-  firstQueue.callAvailable(ros::WallDuration());
+  //ros::CallbackQueue firstQueue;
+  //node_handle.setCallbackQueue(&firstQueue);
+  //firstQueue.callAvailable(ros::WallDuration());
   subMode = node_handle.subscribe(ops);
-  pubStateInfo = node_handle.advertise<std_msgs::Bool>("controller_stateinfo", 10);
-  pubCmdVel = node_handle.advertise<geometry_msgs::Twist>("cmd_vel",10);
+  pubStateInfo = node_handle.advertise<std_msgs::Bool>("controller_stateinfo", 100);
+  pubCmdVel = node_handle.advertise<geometry_msgs::Twist>("/cmd_vel",100);
+  pubTimeout = node_handle.advertise<std_msgs::Bool>("/timeout",100);
    
   
   // Create a second NodeHandle
-  
-  //node_handle2.setCallBackQueue(&secondQueue);
-  ros::CallbackQueue secondQueue;
-  node_handle2.setCallbackQueue(&secondQueue);
-  secondQueue.callAvailable(ros::WallDuration());
-  subCmdVelRemapped = node_handle2.subscribe("controller_cmd_vel", 10, &ControllerClass::UserDriveCallBack,this);
+  subCmdVelRemapped = node_handle.subscribe("/controller_cmd_vel", 100, &ControllerClass::UserDriveCallBack,this);
  
   
   // Create a third NodeHandle
-  ros::CallbackQueue thirdQueue;
-  node_handle3.setCallbackQueue(&thirdQueue);
-  thirdQueue.callAvailable(ros::WallDuration());
-  subScanner = node_handle3.subscribe("scan", 1, &ControllerClass::LaserScanParserCallBack, this);
+  
+  subScanner = node_handle.subscribe("scan", 10, &ControllerClass::LaserScanParserCallBack, this);
  
   
   service_mode = node_handle.advertiseService("/switch_mode", &ControllerClass::switch_mode, this);
-  service_goal = node_handle2.advertiseService("/set_goal", &ControllerClass::set_goal, this);
-  service_timeout = node_handle3.advertiseService("/timeout", &ControllerClass::check_timeout, this);
+  service_goal = node_handle.advertiseService("/set_goal", &ControllerClass::set_goal, this);
+  //service_timeout = node_handle.advertiseService("/timeout", &ControllerClass::check_timeout, this);
   
   
   
-  spinner1.start();
-  spinner2.start();
-  spinner3.start();
+  
   
   
   ROS_INFO("Init Finished");
-  ros::Duration(3).sleep();
+  ros::Duration(10).sleep();
   //mode_choice();
   
   
@@ -144,34 +130,21 @@ void ControllerClass::doneCb(const actionlib::SimpleClientGoalState& state,const
 void ControllerClass::activeCb()
 {
   actionlib::SimpleClientGoalState status = ac.getState();
-  ros::Rate loop_rate(1);
-  for(int cont=1;status==actionlib::SimpleClientGoalState::ACTIVE or status==  actionlib::SimpleClientGoalState::PENDING; cont++,loop_rate.sleep(), status= ac.getState())
-        {
-        displayText("Goal just went active",TEXT_DELAY);
-  	isActionActive = true;
-  	
-  	// Take the current robot position
-        double dist_x;
-	double dist_y;
-	double lin_dist;
-	std::string linear;
-    	
-	// Compute the error from the actual position and the goal position
-	dist_x = currentpose_x - x_goal;
-	dist_y = currentpose_y - y_goal;
-	lin_dist = sqrt(dist_x*dist_x + dist_y*dist_y);
-			
-	linear = std::to_string(lin_dist);
-			
-			
-	displayText("the linaer distance from the goal is\n" ,TEXT_DELAY);
-	displayText(linear,TEXT_DELAY);
-
-        }
+  //ros::Rate loop_rate(0.1);
+  if(status==actionlib::SimpleClientGoalState::ACTIVE or status==  actionlib::SimpleClientGoalState::PENDING)
+   {
+   	displayText("Goal just went active\n",TEXT_DELAY);
+   	isActionActive = true;
+   } else {
+   	displayText("\nAction is not more active\n",TEXT_DELAY);
+   	isActionActive = false;
+   }
+  }
   
-}
+  
 
-void ControllerClass::feedbackCb(const move_base_msgs::MoveBaseFeedbackConstPtr&  msg) {
+
+void ControllerClass::feedbackCb(const move_base_msgs::MoveBaseFeedback::ConstPtr&  msg) {
 
     
     // Update the goal ID if there is a new goal
@@ -180,19 +153,32 @@ void ControllerClass::feedbackCb(const move_base_msgs::MoveBaseFeedbackConstPtr&
         GoalID = msg-> goal_id.id;
     }
     */
+    ros::Rate loop_rate(0.5);
+    while(abs(x_goal-currentpose_x)>GOAL_TH and abs(y_goal-currentpose_y)>GOAL_TH){
+     loop_rate.sleep();
      currentpose_x = msg->base_position.pose.position.x;
      currentpose_y = msg->base_position.pose.position.y;
+     
+     displayText("\n\ncurrent position of the robot is  ",TEXT_DELAY);
+     displayText(std::to_string(currentpose_x),TEXT_DELAY);
+     displayText(" and  ",TEXT_DELAY);
+     displayText(std::to_string(currentpose_y),TEXT_DELAY);
+    
+     	
+     }
    
     }
 
-
-// service for checking the timeout and telling the user
-bool ControllerClass::check_timeout(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res){
+bool ControllerClass::check_timeout(){
+        std_msgs::Bool time;
+	
 	if(isTimeout == true){
-		res.success = true;
+		time.data = true;
+		pubTimeout.publish(time);
 	}
 	else{
-		res.success = false;
+		time.data = false;
+		pubTimeout.publish(time);
 	}
 	return true;
 
@@ -263,30 +249,26 @@ void ControllerClass::printTeleop(){
                     "e/c : increase/decrease only angular speed by 10 percent\n"
                     "anything else : stop\n\n\n", TEXT_DELAY);
                     
-                    if(current_mode == 2){
-	   		 manualDriving();
-	
-		  }else if(current_mode == 3)
-	    		collisionAvoidance();
+                    
         }else{
             printf("\nTo set a goal, call the service /set_goal\n");
         }
 
 } 
 void ControllerClass::manualDriving(){
-	std::string input_assisted;
+	char input_assisted;
 	printTeleop();
 	manual = true;
         assisted = false;
-	while(ros::ok()){
-		displayText("if you want to enable the assisted driving press a or p if you want to exit", TEXT_DELAY);
+	while(input_assisted!= 'p' or input_assisted!= 'a'){
+		displayText("if you want to enable the assisted driving press a or p if you want to exit\n", TEXT_DELAY);
 		std::cin >> input_assisted;
-		if(input_assisted == "a"){
+		if(input_assisted == 'a'){
 			manual = false;
 			displayText("assisted driving mode enabled", TEXT_DELAY);
 			assisted = true;
 			collisionAvoidance();
-		}else if (input_assisted == "p"){
+		}else if (input_assisted == 'p'){
 			displayText("closing ros", TEXT_DELAY);
 			ros::shutdown();
 		}
@@ -297,14 +279,15 @@ void ControllerClass::manualDriving(){
 	
 void ControllerClass::autonomousDriving(){
      
-     move_base_msgs::MoveBaseActionFeedback status;
+     
      bool connection_success = false;
      
      
     if (node_handle.getParam("/rt1a3_action_timeout", actionTimeout)) {
      ROS_INFO("Action timeout successfully retrieved from parameter server");
      } else {
-    	ROS_ERROR("Failed to retrieve action timeout from parameter server");
+    
+     ROS_ERROR("Failed to retrieve action timeout from parameter server");
   	}
     
     //The goal is only to be considered if the mode 1 is active
@@ -333,81 +316,51 @@ void ControllerClass::autonomousDriving(){
                 	boost::bind(&ControllerClass::activeCb, this),
                 	boost::bind(&ControllerClass::feedbackCb, this, _1)
                 	);
-                	
-                isTimeout = ac.waitForResult(ros::Duration(actionTimeout));
+                //for(int cont=1;status==actionlib::SimpleClientGoalState::ACTIVE or status==  actionlib::SimpleClientGoalState::PENDING; cont++,loop_rate.sleep(), status= ac.getState())
+        	// Take the current robot position
+       	 double dist_x;
+		double dist_y;
+		double lin_dist;
+		double lin_dist_m;
+		std::string linear;
+    	
+		// Compute the error from the actual position and the goal position
+		dist_x = currentpose_x - x_goal;
+		dist_y = currentpose_y - y_goal;
+		lin_dist = sqrt(dist_x*dist_x + dist_y*dist_y);
+		lin_dist_m = lin_dist/100000;
+				
+		linear = std::to_string(lin_dist_m);
+			
+			
+		displayText("\n\nthe linaer distance from the goal is   " ,TEXT_DELAY);
+		displayText(linear,TEXT_DELAY);
+	
+		isTimeout = ac.waitForResult(ros::Duration(actionTimeout));
   		if (isTimeout) {
     			 actionlib::SimpleClientGoalState state = ac.getState();
-   			 ROS_INFO("Action finished: %s", state.toString().c_str());
+   			 ROS_INFO("\nAction finished: %s", state.toString().c_str());
    			 
    			 // If action does not finish before timeout, then cancel it and notify user
+   			 isActionActive = false;
+   			 isArrived = true;
     			 sendInfo(true);
     			 ac.cancelGoal();
+    			 
  		 }else {
-    			ROS_INFO("Action timed out.");
+    			ROS_INFO("\nAction timed out.");
+    			isActionActive = false;
     			sendInfo(false);
     			ac.cancelGoal();
+    			
     		}
-    		}
-                	/*
-                	,
-                	actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction>::SimpleActiveCallback(),
-                        actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction>::SimpleFeedbackCallback()
-                	*/
-        	
-        	
-    		// If there is a goal check if the robot has reached the goal or is trying to reach the goal for a too long time
+   		}
+            }    	
+                
+    	}
+                	
     		
-    		/*
-    			// Take the current robot position
-        		double dist_x;
-			double dist_y;
-			double lin_dist;
-			std::string linear;
-    	
-			// Compute the error from the actual position and the goal position
-			dist_x = currentpose_x - x_goal;
-			dist_y = currentpose_y - y_goal;
-			lin_dist = sqrt(dist_x*dist_x + dist_y*dist_y);
-			
-			linear = std::to_string(lin_dist);
-			
-			
-			displayText("the linaer distance from the goal is\n" ,TEXT_DELAY);
-			displayText(linear,TEXT_DELAY);
-	
-			// The robot is on the goal position
-			if (abs(dist_x) <= GOAL_TH && abs(dist_y) <= GOAL_TH)
-			{
-			     printf("Goal reached\n");
-			     isArrived = true;
-			     ac.cancelGoal();
-			     //pubblica il fatto che sia arrivato per l'user       //NON SO SE è GIUSTO COSI RiGUARDA
-			     ros::shutdown();
-			}
-
-	    		//time_end = std::chrono::high_resolution_clock::now();
-	        	//auto time = std::chrono::duration_cast<std::chrono::microseconds>(time_end - time_start).count();
-   			time_end = std::chrono::high_resolution_clock::now();
-        		auto time = std::chrono::duration_cast<std::chrono::microseconds>(time_end - time_start).count();
-        	
-        		if(time > actionTimeout) //TIMEOUT)
-        			{
-        			isTimeout = true;
-        			printf("The actual goal can't be reached!\n");
-        			ac.cancelGoal(); // Cancel the goal if it can't be reached
-        			ros::shutdown();
-        			//EXIT? ROS_SHUTDOWN?
-       		 }
-    		*/
-        	
-       	//ac.waitForServer();
-       	
-	} 
-	
-	}
-
-
-
+   
 
 void ControllerClass::LaserScanParserCallBack(const sensor_msgs::LaserScan::ConstPtr& scaninfo) {
  	const int NUM_SECTORS = 2;
@@ -456,8 +409,8 @@ void ControllerClass::collisionAvoidance() {
   	} else {
     		ROS_ERROR("Failed to retrieve brake threshold from parameter server");
   	}
-
-  	// Correct user input
+	while(ros::ok()){
+		// Correct user input
   	if (minDistances.left <= brakeThreshold) {
     		newVel.linear.x = velFromTeleop.linear.x/2;
     		newVel.angular.z = 1; // Turn the other way
@@ -465,17 +418,27 @@ void ControllerClass::collisionAvoidance() {
   	} else if (minDistances.right <= brakeThreshold) {
     		newVel.linear.x = velFromTeleop.linear.x/2;
     		newVel.angular.z = -1; // Turn the other way
-    		sendInfo("Obstacle detected! Collision avoidance in progress.");
+    		//sendInfo("Obstacle detected! Collision avoidance in progress.");
   	} else {
-    		sendInfo("Listening to commands.");
+    		//sendInfo("Listening to commands.");
   	}
 
   	pubCmdVel.publish(newVel);
+	
+	}
+  	
 }
 
 
 void ControllerClass::UserDriveCallBack(const geometry_msgs::Twist::ConstPtr& msg) {
-  	velFromTeleop = *msg; // Save new velocity as class variable
+	
+	if (!assisted){
+		pubCmdVel.publish(msg);
+	}else{
+		velFromTeleop.linear.x = msg->linear.x;
+  	        velFromTeleop.linear.z = msg-> angular.z; // Save new velocity as class variable
+	}
+  	
 }
 
 
@@ -498,7 +461,8 @@ void ControllerClass::sendInfo(bool temp){
 
 void ControllerClass::CancelCallBack(const std_msgs::String &msg){
     
-    if( msg.data == "cancel"){
+    
+    if( msg.data.compare("cancel") == 0){
     	
     	ac.cancelGoal();
     	clearTerminal();
@@ -509,25 +473,48 @@ void ControllerClass::CancelCallBack(const std_msgs::String &msg){
     
 }
 
+void ControllerClass::mode_choice(){
+	if(!node_handle.hasParam("rt1a3_action_timeout")){
+  		node_handle.setParam("/rt1a3_action_timeout", ACTION_TIMEOUT_DEFAULT);
+  	}
+  	
+ 	 //Set the brake threashold on the parameter server so it can be tweaked in runtime
+ 	 if(!node_handle.hasParam("rt1a3_brake_threshold")){
+ 	 	node_handle.setParam("/rt1a3_brake_threshold", BRAKE_THRESHOLD_DEFAULT);
+  	}
+  	
+  	if(current_mode==1){
+  		autonomousDriving();
+  	}else if(current_mode==2){
+  		manualDriving();
+  	} else if(current_mode == 3){
+  		collisionAvoidance();
+  	} else 
+  		displayText("mode not correct, please check your input",TEXT_DELAY);
+
+
+}
 int main(int argc, char **argv) {
   // Init ROS node
   ros::init(argc, argv, "final_controller");
   ros::NodeHandle nh;
-  ros::NodeHandle nh2;
-  ros::NodeHandle nh3;
+ 
+ 	
+ 
+        
+  ros::AsyncSpinner spinner(0);
+ 
   
   
   
   
-  ControllerClass controller_object(&nh,&nh2,&nh3);
-  if(!nh.hasParam("rt1a3_action_timeout")){
-  		nh.setParam("/rt1a3_action_timeout", ACTION_TIMEOUT_DEFAULT);
-  	}
-  	
- 	 //Set the brake threashold on the parameter server so it can be tweaked in runtime
- 	 if(!nh.hasParam("rt1a3_brake_threshold")){
- 	 	nh.setParam("/rt1a3_brake_threshold", BRAKE_THRESHOLD_DEFAULT);
-  	}
+  ControllerClass controller_object(&nh);
+  spinner.start();
+  
+  
+  controller_object.mode_choice();
+  
+  
   
 
   ros::waitForShutdown();
