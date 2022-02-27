@@ -1,3 +1,5 @@
+
+
 #include "ros/ros.h"
 #include <unistd.h>
 #include <termios.h>
@@ -82,12 +84,12 @@ ControllerClass::ControllerClass(ros::NodeHandle* nodehandle) : node_handle(*nod
   //firstQueue.callAvailable(ros::WallDuration());
   subMode = node_handle.subscribe(ops);
   pubStateInfo = node_handle.advertise<std_msgs::Bool>("controller_stateinfo", 100);
-  pubCmdVel = node_handle.advertise<geometry_msgs::Twist>("/cmd_vel",100);
+  pubCmdVel = node_handle.advertise<geometry_msgs::Twist>("/controller_cmd_vel",100);
   pubTimeout = node_handle.advertise<std_msgs::Bool>("/timeout",100);
    
   
   // Create a second NodeHandle
-  subCmdVelRemapped = node_handle.subscribe("/controller_cmd_vel", 100, &ControllerClass::UserDriveCallBack,this);
+  subCmdVelRemapped = node_handle.subscribe("/cmd_vel", 100, &ControllerClass::UserDriveCallBack,this);
  
   
   // Create a third NodeHandle
@@ -153,9 +155,7 @@ void ControllerClass::feedbackCb(const move_base_msgs::MoveBaseFeedback::ConstPt
         GoalID = msg-> goal_id.id;
     }
     */
-    ros::Rate loop_rate(0.5);
-    while(abs(x_goal-currentpose_x)>GOAL_TH and abs(y_goal-currentpose_y)>GOAL_TH){
-     loop_rate.sleep();
+    
      currentpose_x = msg->base_position.pose.position.x;
      currentpose_y = msg->base_position.pose.position.y;
      
@@ -165,7 +165,7 @@ void ControllerClass::feedbackCb(const move_base_msgs::MoveBaseFeedback::ConstPt
      displayText(std::to_string(currentpose_y),TEXT_DELAY);
     
      	
-     }
+     
    
     }
 
@@ -189,15 +189,17 @@ bool ControllerClass::check_timeout(){
 bool ControllerClass::set_goal(final_assignment::Goal_service::Request  &req, final_assignment::Goal_service::Response &res){
 
 	if(req.x!= 0 && req.y!= 0){
-		displayText("Goal set properly", TEXT_DELAY);
+		displayText("\nGoal set properly", TEXT_DELAY);
 		x_goal= req.x;
 		y_goal = req.y;
 		current_mode = 1;
 		goal_is_defined = true;
+		
+		
 		//time_start = std::chrono::high_resolution_clock::now();
 		
 		res.success = true;
-		autonomousDriving();
+		//autonomousDriving();
 	}
 	else{
 		res.success = false;
@@ -212,7 +214,7 @@ bool ControllerClass::switch_mode(final_assignment::Behavior_mode_service::Reque
   
     //The request is of type int32 (by definition of the service), there is no need to check the type
     
-    if (req.mode ==2 or req.mode == 3){
+    if (req.mode==1 or req.mode ==2 or req.mode == 3){
         current_mode = req.mode;
         res.success = true;
         ROS_INFO("The current mode is now %d ", current_mode);
@@ -226,38 +228,10 @@ bool ControllerClass::switch_mode(final_assignment::Behavior_mode_service::Reque
        return true;
    }
    
-void ControllerClass::printTeleop(){
-//Different message according to the mode
-        if (current_mode ==2 or current_mode==3){
-        manual = true;
-        assisted = false;
-            clearTerminal();
-            
-            displayText("Mode: ", TEXT_DELAY);
-            terminalColor('3');
-            displayText("Manual Drive\n", TEXT_DELAY);
-            terminalColor('3');
-            displayText("\nKeys to control the robot:\n"
-                    "---------------------------\n"
-                    "Moving around:\n"
-                    "u    i    o\n"
-                    "j    k    l\n"
-                    "m    ,    .\n"
 
-                    "q/z : increase/decrease max speeds by 10 percent\n"
-                    "w/x : increase/decrease only linear speed by 10 percent\n"
-                    "e/c : increase/decrease only angular speed by 10 percent\n"
-                    "anything else : stop\n\n\n", TEXT_DELAY);
-                    
-                    
-        }else{
-            printf("\nTo set a goal, call the service /set_goal\n");
-        }
-
-} 
 void ControllerClass::manualDriving(){
 	char input_assisted;
-	printTeleop();
+	
 	manual = true;
         assisted = false;
 	while(input_assisted!= 'p' or input_assisted!= 'a'){
@@ -267,6 +241,7 @@ void ControllerClass::manualDriving(){
 			manual = false;
 			displayText("assisted driving mode enabled", TEXT_DELAY);
 			assisted = true;
+
 			collisionAvoidance();
 		}else if (input_assisted == 'p'){
 			displayText("closing ros", TEXT_DELAY);
@@ -280,11 +255,11 @@ void ControllerClass::manualDriving(){
 void ControllerClass::autonomousDriving(){
      
      
-     bool connection_success = false;
      
      
     if (node_handle.getParam("/rt1a3_action_timeout", actionTimeout)) {
-     ROS_INFO("Action timeout successfully retrieved from parameter server");
+     std::cout << "\nAction timeout successfully retrieved from parameter server";
+    fflush(stdout);
      } else {
     
      ROS_ERROR("Failed to retrieve action timeout from parameter server");
@@ -294,28 +269,32 @@ void ControllerClass::autonomousDriving(){
     //timeoutTimer = node_handle.createTimer(ros::Duration(actionTimeout), &ControllerClass::timeoutTimerCallback,this); //NON SONO SICURI DI COME SI SCRIVA LA FUNZIONE NEL TIMER!!!!!!
         
         // Set the starting time
-	connection_success= ac.waitForServer(ros::Duration(10.0));
-	if (! connection_success) {
-   	 ROS_WARN("  Error connecting to Robot. Terminate");
-   	 
-	}
-	else{
-		if(goal_is_defined and current_mode == 1){
+	ac.waitForServer();
+	
+		//if(goal_is_defined and current_mode == 1){
 		//update the new goal, regarless where this goal is in the map
         	//ROS_INFO("request is x=%f and y=%f", req.x, req.y);
+        	
+        	std::cout <<"\n IDEALLY I COULD SEND THE FUCKING GOAL";
+        	fflush(stdout);
         	goal.target_pose.header.frame_id = "map";
         	goal.target_pose.pose.orientation.w = 1.;
         	goal.target_pose.pose.position.x = x_goal;
         	goal.target_pose.pose.position.y = y_goal;
         
-        	ROS_INFO("The goal is now set to (%f, %f): ", goal.target_pose.pose.position.x, goal.target_pose.pose.position.y);
-        	
+        	std::cout <<"\nThe goal is now set to:  ";
+        	fflush(stdout);
+        	displayText(std::to_string(goal.target_pose.pose.position.x),TEXT_DELAY);
+        	displayText(std::to_string(goal.target_pose.pose.position.y),TEXT_DELAY);
         	
         	ac.sendGoal(goal,
         		boost::bind(&ControllerClass::doneCb, this, _1, _2),
                 	boost::bind(&ControllerClass::activeCb, this),
                 	boost::bind(&ControllerClass::feedbackCb, this, _1)
                 	);
+                	
+                std::cout <<"\nHO PASSATO SEND GOAL";
+                fflush(stdout);	
                 //for(int cont=1;status==actionlib::SimpleClientGoalState::ACTIVE or status==  actionlib::SimpleClientGoalState::PENDING; cont++,loop_rate.sleep(), status= ac.getState())
         	// Take the current robot position
        	 double dist_x;
@@ -354,14 +333,12 @@ void ControllerClass::autonomousDriving(){
     			ac.cancelGoal();
     			
     		}
-   		}
-            }    	
+   		//}
+               	
                 
     	}
                 	
-    		
-   
-
+    
 void ControllerClass::LaserScanParserCallBack(const sensor_msgs::LaserScan::ConstPtr& scaninfo) {
  	const int NUM_SECTORS = 2;
  	int numElements;
@@ -369,7 +346,7 @@ void ControllerClass::LaserScanParserCallBack(const sensor_msgs::LaserScan::Cons
  	float leftDistMin;
  	float rightDistMin;
 	
-        if(assisted = true ){
+        if(assisted = true){
         numElements = scaninfo->ranges.size();
   	numElementsSector = numElements/NUM_SECTORS;
   	// Temporarily take an element from each range
@@ -381,11 +358,13 @@ void ControllerClass::LaserScanParserCallBack(const sensor_msgs::LaserScan::Cons
       		// FIRST sector
       			if (scaninfo->ranges[i] < leftDistMin) {
         			leftDistMin = scaninfo->ranges[i];
+        			
       			}
     		} else {
       		// THIRD sector
       			if (scaninfo->ranges[i] < rightDistMin) {
         			rightDistMin = scaninfo->ranges[i];
+        			
       			}
     		}
   	}
@@ -398,23 +377,40 @@ void ControllerClass::LaserScanParserCallBack(const sensor_msgs::LaserScan::Cons
 }
 
 void ControllerClass::collisionAvoidance() {
-	
+	manual = false;
+	assisted = true;
   	geometry_msgs::Twist newVel;
   	double brakeThreshold;
+  	char input_assisted;
 
   	newVel = velFromTeleop;
+  	current_mode = 3;
 
   	if (node_handle.getParam("/rt1a3_brake_threshold", brakeThreshold)) {
     		// ROS_INFO("Brake threshold successfully retrieved from parameter server");
   	} else {
     		ROS_ERROR("Failed to retrieve brake threshold from parameter server");
   	}
-	while(ros::ok()){
-		// Correct user input
-  	if (minDistances.left <= brakeThreshold) {
+  	
+	
+
+	while(input_assisted!= 'p' or input_assisted!= 'a'){
+		displayText("if you want to disable the assisted driving press a or p if you want to exit\n", TEXT_DELAY);
+		std::cin >> input_assisted;
+	
+	if(input_assisted == 'a'){
+		manual = true;
+		assisted = false;
+		manualDriving();
+	}
+	else if(input_assisted == 'p'){
+	  ros::shutdown();
+	}
+	else{
+	if (minDistances.left <= brakeThreshold) {
     		newVel.linear.x = velFromTeleop.linear.x/2;
     		newVel.angular.z = 1; // Turn the other way
-    		sendInfo("Obstacle detected! Collision avoidance in progress.");
+    		//sendInfo("\nObstacle detected! Collision avoidance in progress.");
   	} else if (minDistances.right <= brakeThreshold) {
     		newVel.linear.x = velFromTeleop.linear.x/2;
     		newVel.angular.z = -1; // Turn the other way
@@ -424,6 +420,8 @@ void ControllerClass::collisionAvoidance() {
   	}
 
   	pubCmdVel.publish(newVel);
+	}
+  	
 	
 	}
   	
@@ -433,8 +431,14 @@ void ControllerClass::collisionAvoidance() {
 void ControllerClass::UserDriveCallBack(const geometry_msgs::Twist::ConstPtr& msg) {
 	
 	if (!assisted){
+		std::cout<<"\n ASSISTED NOPE";
+		fflush(stdout);
+		std::cout<< "LINEARE %s\n", std::to_string(msg->linear.x);
+		std::cout<< "ANGOLARE %s\n",std::to_string(msg->angular.z);
 		pubCmdVel.publish(msg);
 	}else{
+		std::cout<<"\nASSISTED ABILITATO";
+		fflush(stdout);
 		velFromTeleop.linear.x = msg->linear.x;
   	        velFromTeleop.linear.z = msg-> angular.z; // Save new velocity as class variable
 	}
@@ -530,3 +534,4 @@ int main(int argc, char **argv) {
 
 
 
+    

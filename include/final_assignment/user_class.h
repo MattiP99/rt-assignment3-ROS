@@ -18,7 +18,7 @@ class UserClass{
   		
   		//FUNCTIONS
   		
-  		void timeoutTimerCallback(const ros::TimerEvent& event);
+  		void timeoutTimerCallback(const std_msgs::Bool::ConstPtr& timeout);
   		int mode_choice();
   		int getUserChoice();
   		void cancelGoal();
@@ -28,13 +28,15 @@ class UserClass{
 	private:
   		// ROS NodeHandle
   		ros::NodeHandle node_handle;
+  		
 
   		// reate Assync spiner
-  		ros::AsyncSpinner spinner;
-  		ros::CallbackQueue Queue;
+  		
+  		//ros::CallbackQueue Queue;
   		
   		//SUBSCRIBER
   		ros::Subscriber subStateInfo;
+  		ros::Subscriber timeout;
   		
   		
 		//PUBLISHERS
@@ -46,7 +48,7 @@ class UserClass{
   		
    		ros::ServiceClient client_mode;
    		ros::ServiceClient client_goal;
-   		ros::ServiceClient client_timeout;
+   		//ros::ServiceClient client_timeout;
   
   		bool isComplete;
  		bool isAutonomous;

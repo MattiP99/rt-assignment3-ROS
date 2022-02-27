@@ -29,7 +29,7 @@ public:
   
   
   
-  ControllerClass(ros::NodeHandle* node_handle,ros::NodeHandle* node_handle2,ros::NodeHandle* node_handle3);
+  ControllerClass(ros::NodeHandle* node_handle);
   ~ControllerClass();
  
   void sendInfo(bool temp);
@@ -41,10 +41,11 @@ public:
   void LaserScanParserCallBack(const sensor_msgs::LaserScan::ConstPtr& scaninfo);
   
   //Related with the mode chose
- 
+  void mode_choice();
   void manualDriving();
   void autonomousDriving();
-  void printTeleop();
+  
+  bool check_timeout();
   
   //ACTIONCLIENT RELATED
   void feedbackCb(const move_base_msgs::MoveBaseFeedbackConstPtr& fb);
@@ -56,28 +57,20 @@ public:
   //SERVICES RELATED
   bool switch_mode(final_assignment::Behavior_mode_service::Request  &req, final_assignment::Behavior_mode_service::Response &res);
   bool set_goal(final_assignment::Goal_service::Request &req, final_assignment::Goal_service::Response &res);
-  bool check_timeout(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res);
+ // bool check_timeout(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res);
 
 private:
   // ROS NodeHandle
   ros::NodeHandle node_handle;
-  ros::NodeHandle node_handle2;
-  ros::NodeHandle node_handle3;
-
-  // reate Assync spiner
-  ros::AsyncSpinner spinner1;
-  ros::AsyncSpinner spinner2;
-  ros::AsyncSpinner spinner3;
   
-  ros::CallbackQueue firstQueue;
-  ros::CallbackQueue secondQueue;
-  ros::CallbackQueue thirdQueue;
+
   //ACTION CLIENT
  ActionClient ac;
 
   //PUBLISHER
   ros::Publisher pubStateInfo;
   ros::Publisher pubCmdVel;
+  ros::Publisher pubTimeout;
    		
   // SUBSCRIBERS
   ros::Subscriber subMode;
@@ -88,7 +81,7 @@ private:
   //SERVICES
   ros::ServiceServer service_mode;
   ros::ServiceServer service_goal; 
-  ros::ServiceServer service_timeout; 
+  //ros::ServiceServer service_timeout; 
   
   int current_mode;
   bool goal_is_defined; 
