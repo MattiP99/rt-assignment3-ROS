@@ -502,19 +502,9 @@ int main(int argc, char **argv) {
   // Init ROS node
   ros::init(argc, argv, "final_controller");
   ros::NodeHandle nh;
- 
- 	
- 
-        
   ros::AsyncSpinner spinner(0);
- 
-  
-  
-  
-  
   ControllerClass controller_object(&nh);
   spinner.start();
-  
   
   controller_object.mode_choice();
   
