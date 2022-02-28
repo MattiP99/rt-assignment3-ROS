@@ -52,12 +52,14 @@ The User can launch the simulation_sim.launch, mvoe_base.launch, rt1a3_teleop.la
 
 The robot moves in the environment in the figure (Gazebo view):
 
+<img width="782" alt="gazebo" src="https://user-images.githubusercontent.com/92534255/155940743-e88f5ab1-e097-4025-a3a5-460ad08b761e.png">
 
 
 Initially the robot does not have a map of the surrounding environment, but can build it thanks to the laser scanner it is equipped with and thanks to the gmapping package. 
 
 The final map, visible on Rviz is as follows:
 
+<img width="487" alt="rviz" src="https://user-images.githubusercontent.com/92534255/155940790-33f4e580-fc23-494b-9d37-f9bdb1d97679.png">
 
 
 
@@ -66,6 +68,7 @@ The final map, visible on Rviz is as follows:
 
 After running rt1a3.launch, several nodes are active:
 
+<img width="698" alt="rqt2" src="https://user-images.githubusercontent.com/92534255/155940813-29d13949-6ece-4888-adce-29b4a70f7460.png">
 
 
 
