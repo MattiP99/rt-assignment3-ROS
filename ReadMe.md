@@ -21,7 +21,7 @@ Some packages are required; Run the following commands to install them.
 
 	$ git clone https://github.com/CarmineD8/slam_gmapping.git
 	
--Install ros navigation stack:
+- Install ros navigation stack:
 
 	$ sudo apt-get install ros-<your_ros_distro>-navigation
 
@@ -51,19 +51,23 @@ The User can launch the simulation_sim.launch, mvoe_base.launch, rt1a3_teleop.la
 -----------------------------------------------------------------------------------------------------
 
 The robot moves in the environment in the figure (Gazebo view):
-//INSERISCI IMMAGINE DI GAZEBO
+
+
 
 Initially the robot does not have a map of the surrounding environment, but can build it thanks to the laser scanner it is equipped with and thanks to the gmapping package. 
 
 The final map, visible on Rviz is as follows:
 
-//INSERISCI RVIZ IMMAGINE
+
+
 
 ##Project structure
 ------------------------------------------------------------------------------------------------------
 
 After running rt1a3.launch, several nodes are active:
-//IMMAGINE DI rqt-graph
+
+
+
 
 The \cmd_vel topic of \teleop node is remapped on \controller_cmd_vel. In this way the velocity imposed by the user via keyboard isn't immediately imposed to the robot, but it's controlled by \controller node.
 
@@ -161,3 +165,7 @@ The \cmd_vel topic of \teleop node is remapped on \controller_cmd_vel. In this w
  
  	- To handle the autonomous driving, for sending the goal, receiving feedback fromth erobot while reaching the goal, for checking the timeout from the server
 
+# Possible Improvements:
+ - Implementation of a queue for letting the user to decide in advance a series of goal for the robot to reach
+ - Better use of asyncrhonous spinner
+ - Integration of actionserver function for a better response from this one
