@@ -2,7 +2,7 @@
   <!-- For terminal (human) reading -->
   <env name="ROSCONSOLE_FORMAT" value="${message}"/>
   
-  <remap from="/controller_cmd_vel" to="/cmd_vel"/>
+  <remap from="/cmd_vel" to="/controller_cmd_vel"/>
   <node name="teleop_twist_keyboard" pkg="teleop_twist_keyboard"
     type="teleop_twist_keyboard.py" output = "screen" launch-prefix="xterm -e"/>
     

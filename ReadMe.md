@@ -45,9 +45,7 @@ In order to run multiple nodes at the same time, a launch script is provided: rt
     type="final_controller"  />
 </launch>
 
-The User can easaily run the project with the command:
-
-ATTETETETETETETETETETETETETE
+The User can launch the simulation_sim.launch, mvoe_base.launch, rt1a3_teleop.launch and rt1a3.launch
 
 ##Environment and Mapping
 -----------------------------------------------------------------------------------------------------
@@ -64,7 +62,7 @@ The final map, visible on Rviz is as follows:
 ##Project structure
 ------------------------------------------------------------------------------------------------------
 
-After running rt1a3.launch, 8 nodes are active:
+After running rt1a3.launch, several nodes are active:
 //IMMAGINE DI rqt-graph
 
 The \cmd_vel topic of \teleop node is remapped on \controller_cmd_vel. In this way the velocity imposed by the user via keyboard isn't immediately imposed to the robot, but it's controlled by \controller node.
@@ -138,6 +136,9 @@ The \cmd_vel topic of \teleop node is remapped on \controller_cmd_vel. In this w
 # What I used:
 -----------------------------------------------------------------------------------------------------
  - two classes
+ - utils.h for addictional functions
+ - Asyncronous spinner for decciding the system how many threads utilizing
+ - One waiting queue for increasing the speed of the response for canceling the goal
  - two personal services:
   	- Goal_service to send the desired goal once the coordinates are inserted
   	- Behavior_mode_service to send the proper case of utilization of the program
@@ -151,11 +152,12 @@ The \cmd_vel topic of \teleop node is remapped on \controller_cmd_vel. In this w
  
  	  - to send the cancel message from the user
 	  - scan laser per avoidance obstacle
-	  - controller_cmd_vel in pratica è cmd_vel ma rimappata nel launch file in modo da gestire la direzione del robot prima di pubblicarla per assisted driving
+	  - controller_cmd_vel which is cmd_vel remapped
 	  - for the timeout
-	  - state info (ABBASTANZA INUTILE CREDO CHE LO LEVERÒ. HO PENSATO DI USARLO NEL CASO IN CUI ACTION.RESULT SIA IN QUALCHE MODO IMPORTANTE PER L'UTENTE E QUESTO VOLESSE VEDERLO STAMPATO A SCHERMO)
+	  - for cancel the goal
+	  - state info (for lleting the user if the action is complete or timeout)
  
  - Action Client:
  
  	- To handle the autonomous driving, for sending the goal, receiving feedback fromth erobot while reaching the goal, for checking the timeout from the server
-  - gestisce il goal da pubblicare e la cancellazione come anche il feedback(utile per sapere il robot è giunto a destinazione entro un tempo prestabilito o meno)
+

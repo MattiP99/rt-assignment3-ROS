@@ -75,7 +75,10 @@ UserClass::UserClass(ros::NodeHandle* nodehandle): node_handle(*nodehandle){
 UserClass::~UserClass() { ros::shutdown();}
 
 
-
+/*
+* function for receiving the result
+* true if it is complete, false for timeout
+*/
 void UserClass::receiveStateInfo(const std_msgs::Bool::ConstPtr& info){
 
  isComplete = info->data;
@@ -98,6 +101,9 @@ void UserClass::receiveStateInfo(const std_msgs::Bool::ConstPtr& info){
  
 } 
 
+/*
+* Starting function for receiving input from the user
+*/
 int UserClass::mode_choice(){
   
   std::string s;
@@ -216,44 +222,41 @@ int UserClass::mode_choice(){
     client_mode.waitForExistence(); //MAYBE IN THE WRONG POSITION
     if(client_mode.call(mode_srv)){
     	if(mode_srv.response.success == true){
-    		displayText("success in calling mode server",TEXT_DELAY);
+    		displayText("\nsuccess in calling mode server",TEXT_DELAY);
     		}else{
-    		displayText("error in contacting the server",TEXT_DELAY);
+    		displayText("\nerror in contacting the server",TEXT_DELAY);
     		}
     	}
     
     client_goal.waitForExistence();
     if(client_goal.call(goal_srv)){
     		  if(goal_srv.response.success == true){
-			displayText("INPUT RECEIVED CORRECTLY, starting the timer",TEXT_DELAY);
+			displayText("\nINPUT RECEIVED CORRECTLY, starting the timer",TEXT_DELAY);
 			if(mode_srv.request.mode == 1){
 				cancelGoal();
 			}
 			
 			
 		 }else
-			displayText("input not yet received",TEXT_DELAY);
+			displayText("\ninput not yet received",TEXT_DELAY);
 		
 	}
      
     	}		
-    
-  // NEW PART
-  // ros::waitForShutdown();
-  //ros::spin();
 
   return 0;
 }
 
 
+/*
+* function for sending the cancel command via a publisher
+*/
 void UserClass::cancelGoal () {
   char inputStr;
   std::string cancel;
-  std_srvs::SetBool timeout_srv;
-   
- 
+
   std_msgs::String cancel_msg;
-  cancel_msg.data = cancel;
+  
   
   while(!isComplete){
         //Timeout can change with the subscriber callback
@@ -270,7 +273,7 @@ void UserClass::cancelGoal () {
   		std::cin >> inputStr;
     		
     		if (inputStr == 'p') {
-      			// "q" pressed - cancel goal!
+      			// "p" pressed - cancel goal!
       			clearTerminal();
       			terminalColor('3');
       			displayText("Autonomous driving cancel request by user.",TEXT_DELAY);
@@ -309,7 +312,8 @@ int UserClass::getUserChoice () {
 
   return inputChoice;
 }
-  	
+ 
+// subscribing to a topic for checking the timeout 	
 void UserClass::timeoutTimerCallback(const std_msgs::Bool::ConstPtr& timeout){
 	isTimeout = timeout->data;
 }  

@@ -29,7 +29,7 @@ public:
   
   
   
-  ControllerClass(ros::NodeHandle* node_handle);
+  ControllerClass(ros::NodeHandle* node_handle, ros::NodeHandle* node_handle2);
   ~ControllerClass();
  
   void sendInfo(bool temp);
@@ -62,6 +62,7 @@ public:
 private:
   // ROS NodeHandle
   ros::NodeHandle node_handle;
+  ros::NodeHandle node_handle2;
   
 
   //ACTION CLIENT
