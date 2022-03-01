@@ -145,10 +145,10 @@ void ControllerClass::feedbackCb(const move_base_msgs::MoveBaseFeedback::ConstPt
      currentpose_x = msg->base_position.pose.position.x;
      currentpose_y = msg->base_position.pose.position.y;
      
-     displayText("\n\nX  ",TEXT_DELAY);
+     displayText("\n\nX:  ",TEXT_DELAY);
      displayText(std::to_string(currentpose_x),TEXT_DELAY);
      displayText(" and  ",TEXT_DELAY);
-     displayText("Y  \n",TEXT_DELAY);
+     displayText("Y:  ",TEXT_DELAY);
      displayText(std::to_string(currentpose_y),TEXT_DELAY);
     
      	
@@ -164,9 +164,11 @@ bool ControllerClass::check_timeout(){
 		time.data = true;
 		pubTimeout.publish(time);
 	}
-	else{
+	else {
+	if (isArrived == true){
 		time.data = false;
 		pubTimeout.publish(time);
+	}
 	}
 	return true;
 
