@@ -177,8 +177,13 @@ bool ControllerClass::check_timeout(){
 
 //service to set goal
 bool ControllerClass::set_goal(final_assignment::Goal_service::Request  &req, final_assignment::Goal_service::Response &res){
-
-	if(req.x!= 0 && req.y!= 0){
+	
+	std::string req_strX;
+	std::string req_strY;
+	
+	req_strX = std::to_string(req.x);
+	req_strY = std::to_string(req.y);
+	if(req_strX!= ""  && req_strY!= ""){
 		displayText("\nGoal set properly", TEXT_DELAY);
 		x_goal= req.x;
 		y_goal = req.y;
